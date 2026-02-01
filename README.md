@@ -1,5 +1,7 @@
 # TestDataGen
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## Description
 
 TestDataGen is a domain-specific language for generating intelligent test data. The language is created for the purpose of the Domain-Specific Languages course at the Faculty of Technical Sciences, University of Novi Sad.
@@ -268,3 +270,7 @@ _To be added_
 - [Luka Zelović](https://github.com/Zela11)
 - [Milica Đumić](https://github.com/dumitka)
 - [Luka Milanko](https://github.com/Lukaa01)
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
