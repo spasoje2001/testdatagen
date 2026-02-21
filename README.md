@@ -41,83 +41,94 @@ schema Ecommerce {
     combination_strategy: pairwise
     
     entity User {
-        id: uuid
-        
-        email: email {
-            unique: true
-            include: [null, empty, invalid]
+        fields {
+            id: uuid
+            
+            email: email {
+                unique: true
+                include: [null, empty, invalid]
+            }
+            
+            age: number range 18-120 {
+                boundary: true
+                partitions: 3
+            }
+            
+            status: enum ["active", "inactive", "banned"] {
+                coverage: all
+            }
+            
+            balance: number range 0-10000 {
+                boundary: true
+                partition: false
+            }
+            
+            name: fullName {
+                strategy: random
+            }
+            
+            created_at: date range "2020-01-01" to "2025-12-31" {
+                boundary: true
+            }
         }
         
-        age: number range 18-120 {
-            boundary: true
-            partitions: 3
+        config {
+            generate: 50
+            include: [
+                { age: 42, email: "regression-bug-123@test.com", status: "banned", balance: 0 },
+                { age: 18, email: null, status: "active", balance: 9999.99 }
+            ]
         }
-        
-        status: enum ["active", "inactive", "banned"] {
-            coverage: all
-        }
-        
-        balance: number range 0-10000 {
-            boundary: true
-            partition: false
-        }
-        
-        name: fullName {
-            strategy: random
-        }
-        
-        created_at: date range "2020-01-01" to "2025-12-31" {
-            boundary: true
-        }
-        
-        generate: 50
-        
-        include: [
-            { age: 42, email: "regression-bug-123@test.com", status: "banned", balance: 0 },
-            { age: 18, email: null, status: "active", balance: 9999.99 }
-        ]
     }
     
     entity Product {
-        id: uuid
-        name: productName
-        
-        price: number range 0.01-9999.99 {
-            boundary: true
-            precision: 2
+        fields {
+            id: uuid
+            name: productName
+            
+            price: number range 0.01-9999.99 {
+                boundary: true
+                precision: 2
+            }
+            
+            stock: number range 0-1000 {
+                boundary: true
+                special: [0, 1, 999, 1000]
+            }
+            
+            is_available: boolean {
+                coverage: all
+            }
         }
         
-        stock: number range 0-1000 {
-            boundary: true
-            special: [0, 1, 999, 1000]
+        config {
+            generate: 100
+            combination_strategy: full
         }
-        
-        is_available: boolean {
-            coverage: all
-        }
-        
-        combination_strategy: full
-        generate: 100
     }
     
     entity Order {
-        id: uuid
-        user: ref User
-        
-        items: ref Product[] count 1-10 {
-            boundary: true
+        fields {
+            id: uuid
+            user: ref User
+            
+            items: ref Product[] count 1-10 {
+                boundary: true
+            }
+            
+            total: number range 0.01-99999.99 {
+                boundary: true
+                precision: 2
+            }
+            
+            status: enum ["pending", "processing", "shipped", "delivered", "cancelled"] {
+                coverage: all
+            }
         }
         
-        total: number range 0.01-99999.99 {
-            boundary: true
-            precision: 2
+        config {
+            generate: 200
         }
-        
-        status: enum ["pending", "processing", "shipped", "delivered", "cancelled"] {
-            coverage: all
-        }
-        
-        generate: 200
     }
 }
 ```
@@ -280,21 +291,28 @@ schema Example {
     combination_strategy: pairwise    // Global default
     
     entity User {
-        // Uses pairwise (from schema default)
-        age: number range 18-65
-        status: enum ["active", "inactive"]
-        role: enum ["admin", "user", "guest"]
+        fields {
+            age: number range 18-65
+            status: enum ["active", "inactive"]
+            role: enum ["admin", "user", "guest"]
+        }
         
-        generate: 20
+        config {
+            generate: 20
+            // Uses pairwise from schema default
+        }
     }
     
     entity SimpleConfig {
-        // Override: use full because only 2 fields
-        enabled: boolean
-        mode: enum ["fast", "slow"]
+        fields {
+            enabled: boolean
+            mode: enum ["fast", "slow"]
+        }
         
-        combination_strategy: full    // 2 × 2 = 4, full is fine
-        generate: 10
+        config {
+            generate: 10
+            combination_strategy: full    // Override: 2 × 2 = 4, full is fine
+        }
     }
 }
 ```
@@ -343,22 +361,28 @@ schema Example {
     strategy: smart                    // Global: all sub-strategies enabled
     
     entity User {
-        // Uses global strategy (smart)
-        age: number range 18-65
-        
-        // Override to random only (ignore smart)
-        name: fullName {
-            strategy: random
+        fields {
+            // Uses global strategy (smart)
+            age: number range 18-65
+            
+            // Override to random only (ignore smart)
+            name: fullName {
+                strategy: random
+            }
+            
+            // Keep boundary, disable partition
+            balance: number range 0-1000 {
+                partition: false
+            }
+            
+            // Enable boundary even if global was "random"
+            score: number range 0-100 {
+                boundary: true
+            }
         }
         
-        // Keep boundary, disable partition
-        balance: number range 0-1000 {
-            partition: false
-        }
-        
-        // Enable boundary even if global was "random"
-        score: number range 0-100 {
-            boundary: true
+        config {
+            generate: 50
         }
     }
 }
@@ -370,19 +394,49 @@ Define explicit test cases that will always be generated, useful for regression 
 
 ```
 entity User {
-    age: number range 18-65
-    email: email
-    status: enum ["active", "inactive", "banned"]
+    fields {
+        age: number range 18-65
+        email: email
+        status: enum ["active", "inactive", "banned"]
+    }
     
-    generate: 50
-    
-    // These records are ALWAYS generated (in addition to auto-generated ones)
-    include: [
-        { age: 42, email: "bug-123@test.com", status: "banned" },
-        { age: 18, email: null, status: "active" }
-    ]
+    config {
+        generate: 50
+        
+        // These records are ALWAYS generated (in addition to auto-generated ones)
+        include: [
+            { age: 42, email: "bug-123@test.com", status: "banned" },
+            { age: 18, email: null, status: "active" }
+        ]
+    }
 }
 ```
+
+### Entity Structure
+
+Each entity consists of two blocks:
+
+| Block | Required | Description |
+|-------|----------|-------------|
+| `fields { }` | Yes | Field definitions (attributes with types and constraints) |
+| `config { }` | No | Generation configuration (generate count, combination strategy, include) |
+
+```
+entity User {
+    fields {
+        // Field definitions go here
+        id: uuid
+        email: email { unique: true }
+    }
+    config {
+        // Generation configuration goes here
+        generate: 50
+        combination_strategy: pairwise
+        include: [...]
+    }
+}
+```
+This separation ensures clear distinction between entity schema (what the data looks like) and generation settings (how to generate it).
 
 ## Instructions
 
