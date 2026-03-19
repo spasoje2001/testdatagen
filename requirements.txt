@@ -1,0 +1,4 @@
+textX>=3.0
+Faker>=18.0
+Jinja2>=3.0
+Click>=8.0
