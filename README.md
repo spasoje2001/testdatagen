@@ -452,16 +452,14 @@ This separation ensures clear distinction between entity schema (what the data l
 git clone https://github.com/spasoje2001/testdatagen.git
 cd testdatagen
 ```
+# 2. Create virtual environment
+python -m venv .venv
 
-2. Install dependencies
-```bash
-pip install -r requirements.txt
-```
+# 3. Activate virtual environment
+.venv\Scripts\activate
 
-3. Install TestDataGen CLI
-```bash
+# 4. Install dependencies and TestDataGen CLI
 pip install -e .
-```
 
 ### Usage
 

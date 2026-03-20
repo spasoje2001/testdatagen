@@ -24,8 +24,6 @@ dependencies = [
 [project.scripts]
 testdatagen = "testdatagen.cli:main"
 
-[tool.setuptools]
-package-dir = {"" = "testdatagen"}
-
 [tool.setuptools.packages.find]
-where = ["testdatagen"]
+where = ["."]
+include = ["testdatagen*"]
