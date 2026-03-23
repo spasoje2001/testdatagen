@@ -463,6 +463,14 @@ pip install -e .
 
 ### Usage
 
+# 1. Start testing
+pytest
+
+or
+
+pytest -v (for details)
+
+
 Generate test data from a schema file:
 
 ```bash

@@ -1,0 +1,13 @@
+schema ExampleSchema {
+    description: "Basic test schema"
+    seed: 42
+    strategy: random
+    combination_strategy: full
+
+    entity User {
+        fields {
+            name: string
+            age: int
+        }
+    }
+}
