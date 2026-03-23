@@ -51,10 +51,6 @@ def test_parse_schema_with_multiple_entities():
                     sku: string
                     price: number { range 1..100000, boundary }
                 }
-                config {
-                    region: EU
-                    enabled: true
-                }
             }
         }
         """
@@ -66,8 +62,6 @@ def test_parse_schema_with_multiple_entities():
     assert model.combination_strategy == "full"
     assert [entity.name for entity in model.entities] == ["User", "Product"]
     assert [field.name for field in model.entities[1].fields] == ["sku", "price"]
-    assert model.entities[1].config is not None
-    assert len(model.entities[1].config.entries) == 2
 
 
 def test_parse_example_schema_file_without_errors():
@@ -272,3 +266,37 @@ def test_invalid_syntax_for_constraint_block():
         load_model_from_str(
             wrap_field("age: number { range 1..10 boundary }")
         )
+
+def test_entity_config_generate_and_combination_strategy():
+    model = load_model_from_str(
+        """
+        schema Demo {
+            entity User {
+                fields {
+                    id: uuid
+                    age: number
+                }
+                config {
+                    generate: 100
+                    combination_strategy: pairwise
+                }
+            }
+        }
+        """
+    )
+
+    entity = model.entities[0]
+    assert entity.config is not None
+    assert len(entity.config.options) == 2
+
+    generate_option = next(
+        option for option in entity.config.options
+        if option.__class__.__name__ == "GenerateOption"
+    )
+    strategy_option = next(
+        option for option in entity.config.options
+        if option.__class__.__name__ == "EntityCombinationStrategyOption"
+    )
+
+    assert generate_option.generate == 100
+    assert strategy_option.combination_strategy == "pairwise"
