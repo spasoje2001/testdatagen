@@ -1,13 +1,35 @@
-schema ExampleSchema {
-    description: "Basic test schema"
+schema TestData {
+    description: "Advanced schema"
     seed: 42
     strategy: random
-    combination_strategy: full
+    combination_strategy: pairwise
 
     entity User {
         fields {
-            name: string
-            age: int
+            id: uuid { unique }
+            email: email { unique, include[invalid, null] }
+            full_name: fullName
+            first_name: firstName
+            last_name: lastName
+            age: number { range 18..65, boundary, partition 5, precision 0, coverage 100, strategy boundary }
+            score: number { range 0..100, partitions[20, 40, 60, 80], special["-1", "101"] }
+            active: boolean { include[null] }
+            birth_date: date { range "1990-01-01".."2020-12-31", boundary }
+            created_at: datetime { range "2024-01-01T00:00:00".."2024-12-31T23:59:59" }
+            status: enum["NEW", "ACTIVE", "BLOCKED"] { include[invalid] }
+            bio: string { include[empty, null] }
+            product_name: productName
+            company_name: companyName
+            address_line: address
+            city_name: city
+            country_name: country
+            phone_number: phone { include[invalid] }
+            website: url { include[invalid] }
+        }
+
+        config {
+            source: "faker"
+            locale: "en_US"
         }
     }
 }
