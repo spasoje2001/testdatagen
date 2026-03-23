@@ -11,10 +11,108 @@ Entity:
     'entity' name=ID '{'
         'fields' '{' fields+=Field '}'
         ('config' '{' config=EntityConfig '}')?
-    '}';
+    '}'
+;
 
 Field:
-    name=ID ':' type=ID
+    name=ID ':' type=FieldType
+    ('{' constraints+=Constraint[','] '}')?
+;
+FieldType:
+    SimpleType | EnumType
+;
+
+SimpleType:
+    name=SimpleTypeName
+;
+
+SimpleTypeName:
+    'uuid' | 'email' | 'fullName' | 'firstName' | 'lastName' |
+    'number' | 'boolean' | 'datetime' | 'date' | 'string' |
+    'productName' | 'companyName' | 'address' | 'city' |
+    'country' | 'phone' | 'url'
+;
+
+EnumType:
+    'enum' '[' values+=STRING[','] ']'
+;
+
+Constraint:
+    RangeConstraint |
+    BoundaryConstraint |
+    PartitionsConstraint |
+    PartitionConstraint |
+    UniqueConstraint |
+    IncludeConstraint |
+    StrategyConstraint |
+    PrecisionConstraint |
+    SpecialConstraint |
+    CoverageConstraint
+;
+
+RangeConstraint:
+    'range' min=ScalarValue '..' max=ScalarValue
+;
+
+BoundaryConstraint:
+    keyword='boundary'
+;
+
+PartitionsConstraint:
+    keyword='partitions' '[' values+=INT[','] ']'
+;
+
+PartitionConstraint:
+    keyword='partition' value=INT
+;
+
+
+UniqueConstraint:
+    keyword='unique'
+;
+
+PrecisionConstraint:
+    keyword='precision' value=INT
+;
+
+SpecialConstraint:
+    keyword='special' '[' values+=STRING[','] ']'
+;
+
+CoverageConstraint:
+    keyword='coverage' value=INT
+;
+
+IncludeConstraint:
+    keyword='include' '[' values+=IncludeValue[','] ']'
+;
+
+StrategyConstraint:
+    keyword='strategy' value=Strategy
+;
+
+IncludeValue:
+    'null' | 'empty' | 'invalid'
+;
+
+Strategy:
+    'random' | 'boundary' | 'partition' | 'smart'
+;
+
+CombinationStrategy:
+    'full' | 'pairwise' | 'each-used'
+;
+
+Value:
+    ScalarValue | ListValue
+;
+
+ListValue:
+    '[' values+=ScalarValue[','] ']'
+;
+
+ScalarValue:
+    FLOAT | INT | STRING | BOOL
 ;
 
 EntityConfig:
