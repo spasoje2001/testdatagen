@@ -145,6 +145,47 @@ def _validate_field(field):
         elif cname == "StrategyConstraint":
             pass
 
+def _validate_entity_config(entity):
+    config = getattr(entity, "config", None)
+    if config is None:
+        return
+
+    seen_option_types = set()
+
+    for option in getattr(config, "options", []):
+        option_type = option.__class__.__name__
+
+        if option_type in seen_option_types:
+            _raise(
+                f"Entity '{entity.name}': config option '{option_type}' can appear only once.",
+                option,
+            )
+        seen_option_types.add(option_type)
+
+        if option_type == "GenerateOption":
+            if option.generate < 0:
+                _raise(
+                    f"Entity '{entity.name}': generate must be >= 0.",
+                    option,
+                )
+
+        elif option_type == "IncludeOption":
+            field_names = {field.name for field in entity.fields}
+            for test_case in option.include:
+                assigned_names = set()
+                for assignment in test_case.assignments:
+                    if assignment.name not in field_names:
+                        _raise(
+                            f"Entity '{entity.name}': include references unknown field '{assignment.name}'.",
+                            assignment,
+                        )
+                    if assignment.name in assigned_names:
+                        _raise(
+                            f"Entity '{entity.name}': duplicate assignment '{assignment.name}' in include test case.",
+                            assignment,
+                        )
+                    assigned_names.add(assignment.name)
+
 
 def _validate_model(model, _metamodel):
     schemas = [model] if hasattr(model, "entities") else getattr(model, "schemas", [])

@@ -18,6 +18,7 @@ Field:
     name=ID ':' type=FieldType
     ('{' constraints+=Constraint[','] '}')?
 ;
+
 FieldType:
     SimpleType | EnumType
 ;
@@ -116,16 +117,35 @@ ScalarValue:
 ;
 
 EntityConfig:
-    entries*=ConfigEntry
+    options*=EntityConfigOption
 ;
 
-ConfigEntry:
-    key=ID ':' value=ConfigValue
+EntityConfigOption:
+    GenerateOption |
+    EntityCombinationStrategyOption |
+    IncludeOption
 ;
 
-ConfigValue:
-    STRING | INT | BOOL | ID
+GenerateOption:
+    'generate:' generate=INT
+;
+
+EntityCombinationStrategyOption:
+    'combination_strategy:' combination_strategy=CombinationStrategy
+;
+
+IncludeOption:
+    'include:' '[' include+=TestCase[','] ']'
+;
+
+TestCase:
+    '{' assignments+=FieldAssignment[','] '}'
+;
+
+FieldAssignment:
+    name=ID ':' value=Value
 ;
 
 Strategy: 'random' | 'boundary' | 'partition' | 'smart';
+
 CombinationStrategy: 'full' | 'pairwise' | 'each-used';
