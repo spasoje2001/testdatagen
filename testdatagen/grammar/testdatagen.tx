@@ -1,0 +1,33 @@
+Schema: 
+    'schema' name=ID '{'
+        ('description:' description=STRING)?
+        ('seed:' seed=INT)?
+        ('strategy:' strategy=Strategy)?
+        ('combination_strategy:' combination_strategy=CombinationStrategy)?
+        entities+=Entity
+    '}';
+
+Entity:
+    'entity' name=ID '{'
+        'fields' '{' fields+=Field '}'
+        ('config' '{' config=EntityConfig '}')?
+    '}';
+
+Field:
+    name=ID ':' type=ID
+;
+
+EntityConfig:
+    entries*=ConfigEntry
+;
+
+ConfigEntry:
+    key=ID ':' value=ConfigValue
+;
+
+ConfigValue:
+    STRING | INT | BOOL | ID
+;
+
+Strategy: 'random' | 'boundary' | 'partition' | 'smart';
+CombinationStrategy: 'full' | 'pairwise' | 'each-used';
