@@ -300,3 +300,54 @@ def test_entity_config_generate_and_combination_strategy():
 
     assert generate_option.generate == 100
     assert strategy_option.combination_strategy == "pairwise"
+
+def test_simple_ref_type():
+    model = load_model_from_str(
+        """
+        schema Demo {
+            entity User {
+                fields {
+                    id: uuid
+                }
+            }
+
+            entity Order {
+                fields {
+                    owner: ref User
+                }
+            }
+        }
+        """
+    )
+
+    field = model.entities[1].fields[0]
+    assert field.name == "owner"
+    assert field.type.__class__.__name__ == "RefType"
+    assert field.type.entity.name == "User"
+    assert field.type.array is False
+
+def test_array_ref_with_count():
+    model = load_model_from_str(
+        """
+        schema Demo {
+            entity User {
+                fields {
+                    id: uuid
+                }
+            }
+
+            entity Team {
+                fields {
+                    members: ref User[] count 1..10
+                }
+            }
+        }
+        """
+    )
+
+    field = model.entities[1].fields[0]
+    assert field.type.__class__.__name__ == "RefType"
+    assert field.type.entity.name == "User"
+    assert field.type.array is True
+    assert field.type.min == 1
+    assert field.type.max == 10

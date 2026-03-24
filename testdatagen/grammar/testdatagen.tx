@@ -20,7 +20,14 @@ Field:
 ;
 
 FieldType:
-    SimpleType | EnumType
+    RefType | EnumType | SimpleType
+;
+
+RefType:
+    'ref' entity=[Entity]
+    (array?='[]')?
+    (has_count?='count' min=INT '..' max=INT)?
+    (count_boundary?='boundary')?
 ;
 
 SimpleType:
@@ -105,7 +112,7 @@ CombinationStrategy:
 ;
 
 Value:
-    ScalarValue | ListValue
+    ScalarValue | ListValue | 'null'
 ;
 
 ListValue:
@@ -145,7 +152,3 @@ TestCase:
 FieldAssignment:
     name=ID ':' value=Value
 ;
-
-Strategy: 'random' | 'boundary' | 'partition' | 'smart';
-
-CombinationStrategy: 'full' | 'pairwise' | 'each-used';
