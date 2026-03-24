@@ -1,7 +1,10 @@
 from textx import metamodel_from_file, get_location
 from textx.exceptions import TextXSemanticError
+from pathlib import Path
 
-DATE_LIKE_TYPES = {"date", "datetime"}
+GRAMMAR_PATH = Path(__file__).resolve().parent / "testdatagen" / "grammar" / "testdatagen.tx"
+
+_METAMODEL = None
 RANGE_TYPES = {"number", "date", "datetime"}
 PRECISION_TYPES = {"number"}
 PARTITION_TYPES = {"number", "date", "datetime"}
@@ -10,11 +13,14 @@ COVERAGE_MAX = 100
 
 
 def _field_type_name(field_type):
+    class_name = field_type.__class__.__name__
+    if class_name == "RefType":
+        return "ref"
+    if class_name == "EnumType":
+        return "enum"
     if hasattr(field_type, "name"):
         return field_type.name
-    if field_type.__class__.__name__ == "EnumType":
-        return "enum"
-    return type(field_type).__name__
+    return class_name
 
 
 def _constraint_name(constraint):
@@ -58,6 +64,10 @@ def _validate_range_constraint(field, constraint, field_type_name):
 
 def _validate_field(field):
     field_type_name = _field_type_name(field.type)
+
+    if field.type.__class__.__name__ == "RefType":
+        _validate_ref_type(field)
+
     constraints = getattr(field, "constraints", []) or []
     names = [_constraint_name(c) for c in constraints]
 
@@ -145,6 +155,83 @@ def _validate_field(field):
         elif cname == "StrategyConstraint":
             pass
 
+def _validate_ref_type(field):
+    field_type = field.type
+
+    if field_type.__class__.__name__ != "RefType":
+        return
+
+    is_array = bool(getattr(field_type, "array", False))
+    has_count = bool(getattr(field_type, "has_count", False))
+    count_boundary = bool(getattr(field_type, "count_boundary", False))
+
+    min_count = getattr(field_type, "min", None)
+    max_count = getattr(field_type, "max", None)
+
+    if has_count and not is_array:
+        _raise(
+            f"Field '{field.name}': count constraint is allowed only on array references.",
+            field,
+        )
+
+    if count_boundary and not has_count:
+        _raise(
+            f"Field '{field.name}': boundary on count requires a count range.",
+            field,
+        )
+
+    if has_count:
+        if min_count < 0 or max_count < 0:
+            _raise(
+                f"Field '{field.name}': count values must be >= 0.",
+                field,
+            )
+        if min_count > max_count:
+            _raise(
+                f"Field '{field.name}': count minimum cannot be greater than maximum.",
+                field,
+            )
+
+def _detect_circular_references(schema):
+    graph = {}
+
+    for entity in schema.entities:
+        refs = []
+        for field in entity.fields:
+            if field.type.__class__.__name__ == "RefType":
+                refs.append(field.type.entity.name)
+        graph[entity.name] = refs
+
+    visited = set()
+    stack = set()
+    warned_cycles = set()
+
+    def dfs(node, path):
+        if node in stack:
+            cycle_start = path.index(node)
+            cycle = tuple(path[cycle_start:] + [node])
+            if cycle not in warned_cycles:
+                warned_cycles.add(cycle)
+                print(
+                    f"Warning: circular reference detected: {' -> '.join(cycle)}"
+                )
+            return
+
+        if node in visited:
+            return
+
+        visited.add(node)
+        stack.add(node)
+
+        for neighbor in graph.get(node, []):
+            dfs(neighbor, path + [neighbor])
+
+        stack.remove(node)
+
+    for entity_name in graph:
+        dfs(entity_name, [entity_name])
+
+
 def _validate_entity_config(entity):
     config = getattr(entity, "config", None)
     if config is None:
@@ -202,11 +289,17 @@ def _validate_model(model, _metamodel):
                 field_names.add(field.name)
                 _validate_field(field)
 
+            _validate_entity_config(entity)
+
+        _detect_circular_references(schema)
+
 
 def get_metamodel():
-    mm = metamodel_from_file("testdatagen\\grammar\\testdatagen.tx")
-    mm.register_model_processor(_validate_model)
-    return mm
+    global _METAMODEL
+    if _METAMODEL is None:
+        _METAMODEL = metamodel_from_file(str(GRAMMAR_PATH))
+        _METAMODEL.register_model_processor(_validate_model)
+    return _METAMODEL
 
 
 def load_model(path):
