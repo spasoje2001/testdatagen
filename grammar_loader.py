@@ -14,7 +14,7 @@ from validation import (
     InvalidPartitionsError,
 )
 
-GRAMMAR_PATH = Path(__file__).resolve().parent / "testdatagen" / "grammar" / "testdatagen.tx"
+GRAMMAR_PATH = Path("testdatagen/grammar/testdatagen.tx")
 
 _METAMODEL = None
 
