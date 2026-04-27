@@ -67,12 +67,13 @@ class FakerTypeMapper:
 
     def __init__(self, seed: Optional[int] = None):
         self._seed = seed
-        self._random = random.Random(seed)
-        self.faker = Faker()
-        # Give this Faker instance its own isolated Random seeded independently
-        # so multiple mappers with the same seed don't interfere with each other
+        self._random = random.Random(seed)   # per-instance Random, never touches global
         if seed is not None:
-            self.faker.seed_instance(seed)
+            Faker.seed(seed)                 # seed Faker's class-level generator first
+        self.faker = Faker()                 # then create the instance so it inherits the seed
+        if seed is not None:
+            self.faker.seed_instance(seed)   # isolate this instance from others
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -171,7 +172,14 @@ class FakerTypeMapper:
     # --- UUID ---
 
     def _gen_uuid(self, constraints: list) -> str:
-        return str(uuid.uuid4())
+        # Generate a deterministic UUID from the seeded random state
+        rand_int = self._random.getrandbits(128)
+        # Set version 4 bits and variant bits per RFC 4122
+        rand_int &= ~(0xc000 << 48)
+        rand_int |=  (0x8000 << 48)
+        rand_int &= ~(0xf000 << 64)
+        rand_int |=  (0x4000 << 64)
+        return str(uuid.UUID(int=rand_int))
 
     # --- Personal ---
 
