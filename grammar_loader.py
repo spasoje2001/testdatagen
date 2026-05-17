@@ -482,3 +482,13 @@ def load_model(path):
 
 def load_model_from_str(model_str):
     return get_metamodel().model_from_str(model_str)
+
+
+def validate_schema(path):
+    
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        
+        load_model(path)
+        
+        return [str(w.message) for w in caught_warnings]
