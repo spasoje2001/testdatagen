@@ -1,0 +1,29 @@
+{
+  "name": "testdatagen-support",
+  "displayName": "TestDataGen Support",
+  "description": "Syntax highlighting for TestDataGen files",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "testdatagen",
+        "aliases": ["TestDataGen", "testdatagen"],
+        "extensions": [".tdata", ".tdg"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "testdatagen",
+        "scopeName": "source.testdatagen",
+        "path": "./syntaxes/testdatagen.tmLanguage.json"
+      }
+    ]
+  }
+}
