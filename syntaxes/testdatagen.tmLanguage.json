@@ -1,0 +1,95 @@
+{
+  "scopeName": "source.testdatagen",
+  "name": "TestDataGen",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#strategies" },
+    { "include": "#constants" },
+    { "include": "#strings" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.testdatagen",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.testdatagen",
+          "begin": "/\\*",
+          "end": "\\*/"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.testdatagen",
+          "match": "\\b(schema|entity|fields|config|ref|enum|range)\\b"
+        },
+        {
+          "name": "keyword.other.option.testdatagen",
+          "match": "\\b(generate|include|strategy|combination_strategy|description|seed|count|boundary|partitions|partition|unique|precision|special|coverage)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.testdatagen",
+          "match": "\\b(uuid|email|fullName|firstName|lastName|number|boolean|datetime|date|string|productName|companyName|address|city|country|phone|url)\\b"
+        }
+      ]
+    },
+    "strategies": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.strategy.testdatagen",
+          "match": "\\b(random|boundary|partition|smart|full|pairwise|each-used)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.testdatagen",
+          "match": "\\b(true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.testdatagen",
+          "match": "\\b(null|empty|invalid)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.testdatagen",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.testdatagen",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        {
+          "name": "constant.numeric.float.testdatagen",
+          "match": "\\b\\d+\\.\\d+\\b"
+        },
+        {
+          "name": "constant.numeric.integer.testdatagen",
+          "match": "\\b\\d+\\b"
+        }
+      ]
+    }
+  }
+}
