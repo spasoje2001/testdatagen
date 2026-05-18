@@ -21,6 +21,8 @@ import random as _random_module
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
+import os
+
 from jinja2 import Environment, BaseLoader
 
 from testdatagen.generators.faker_integration import FakerTypeMapper
@@ -541,3 +543,25 @@ class SQLGenerator:
                 jt_rows.append({entity_col: entity_id, ref_col: ref_id})
 
         return jt_rows
+
+
+def generate_sql(model, output_dir, overwrite):
+    """
+    CLI interface for the SQLGenerator class.
+    Handles file I/O and orchestration.
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generator = SQLGenerator(model, timestamp=timestamp)
+    
+    sql_content = generator.render()
+    
+    schema_name = getattr(model, "name", "generated_data")
+    file_path = os.path.join(output_dir, f"{schema_name}.sql")
+    
+    if os.path.exists(file_path) and not overwrite:
+        raise FileExistsError(f"File {file_path} already exists. Use --overwrite to replace it.")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(sql_content)
+    
+    return file_path

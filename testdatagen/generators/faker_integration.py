@@ -39,7 +39,14 @@ def _parse_date(value) -> date:
     if isinstance(value, date):
         return value
     if isinstance(value, str):
-        return date.fromisoformat(value.strip('"').strip("'"))
+        clean_val = value.strip('"').strip("'")
+        try:
+            return datetime.fromisoformat(clean_val)
+        except ValueError:
+            try:
+                return date.fromisoformat(clean_val)
+            except ValueError:
+                raise ValueError(f"Invalid ISO format for date/datetime: {value!r}")
     raise TypeError(f"Cannot convert {type(value)} to date: {value!r}")
 
 

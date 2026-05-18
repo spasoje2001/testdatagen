@@ -29,6 +29,7 @@ rather than full nested objects, keeping the output flat and easy to mock.
 from __future__ import annotations
 
 import json
+import os
 import random as _random_module
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
@@ -263,3 +264,26 @@ class JSONGenerator:
                 row[arr_field.name] = rng.choices(available_ids, k=count)
 
         return rows
+
+
+
+def generate_json(model, output_dir, overwrite):
+    """
+    CLI interface for the JSONGenerator class.
+    Handles file I/O and orchestration.
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generator = JSONGenerator(model, timestamp=timestamp)
+    
+    json_content = generator.render()
+    
+    schema_name = getattr(model, "name", "generated_data")
+    file_path = os.path.join(output_dir, f"{schema_name}.json")
+    
+    if os.path.exists(file_path) and not overwrite:
+        raise FileExistsError(f"File {file_path} already exists. Use --overwrite to replace it.")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(json_content)
+    
+    return file_path
