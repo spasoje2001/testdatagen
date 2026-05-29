@@ -1,5 +1,8 @@
 from pathlib import Path
 import warnings
+import os
+import urllib.parse
+import urllib.request
 
 from textx import metamodel_from_file
 from validation import (
@@ -14,7 +17,8 @@ from validation import (
     InvalidPartitionsError,
 )
 
-GRAMMAR_PATH = Path("testdatagen/grammar/testdatagen.tx")
+CURRENT_DIR = Path(__file__).parent
+GRAMMAR_PATH = CURRENT_DIR / "testdatagen/grammar/testdatagen.tx"
 
 _METAMODEL = None
 
@@ -477,8 +481,28 @@ def get_metamodel():
 
 
 def load_model(path):
-    return get_metamodel().model_from_file(str(path))
+    path_str = str(path)
+    if path_str.startswith("file://"):
+        unquoted_uri = urllib.parse.unquote(path_str)
+        parsed_url = urllib.parse.urlparse(unquoted_uri)
+        p = parsed_url.path
+        if (p.startswith('/') or p.startswith('\\')) and len(p) > 2 and p[2] == ':':
+            p = p[1:]
+        path_str = urllib.request.url2pathname(p)
+        
+    operational_path = Path(path_str).resolve()
+    return get_metamodel().model_from_file(str(operational_path))
 
 
 def load_model_from_str(model_str):
     return get_metamodel().model_from_str(model_str)
+
+
+def validate_schema(path):
+    
+    with warnings.catch_warnings(record=True) as caught_warnings:
+        warnings.simplefilter("always")
+        
+        load_model(path)
+        
+        return [str(w.message) for w in caught_warnings]

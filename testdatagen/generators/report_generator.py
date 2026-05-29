@@ -47,6 +47,8 @@ from testdatagen.generators.sql_generator import (
 )
 from testdatagen.generators.faker_integration import FakerTypeMapper
 
+import os
+from datetime import datetime
 # ---------------------------------------------------------------------------
 # HTML template (embedded — no file path dependency)
 # ---------------------------------------------------------------------------
@@ -647,3 +649,25 @@ class ReportGenerator:
                     new_row[fname] = rng.choice(available) if available else None
             resolved.append(new_row)
         return resolved
+
+
+def generate_report(model, output_dir, overwrite):
+    """
+    CLI interface for the ReportGenerator class.
+    Handles file I/O and orchestration.
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generator = ReportGenerator(model, timestamp=timestamp)
+    
+    report_content = generator.render()
+    
+    schema_name = getattr(model, "name", "generated_data")
+    file_path = os.path.join(output_dir, f"{schema_name}.html")
+    
+    if os.path.exists(file_path) and not overwrite:
+        raise FileExistsError(f"File {file_path} already exists. Use --overwrite to replace it.")
+    
+    with open(file_path, 'w', encoding='utf-8') as f:
+        f.write(report_content)
+    
+    return file_path

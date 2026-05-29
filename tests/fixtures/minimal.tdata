@@ -1,0 +1,49 @@
+schema Blog {
+
+    description: "Example for issue #21 - minimal"
+    seed: 123
+    strategy: random
+    combination_strategy: each-used
+
+    entity User {
+        fields {
+            id: uuid
+
+            username: string {
+                unique
+            }
+
+            email: email {
+                unique
+            }
+
+            age: number {
+                range 18..65
+            }
+
+            isActive: boolean
+        }
+
+        config {
+            generate: 10
+        }
+    }
+
+    entity Post {
+        fields {
+            id: uuid
+
+            title: string
+
+            content: string
+
+            published: boolean
+
+            author: ref User
+        }
+
+        config {
+            generate: 15
+        }
+    }
+}
