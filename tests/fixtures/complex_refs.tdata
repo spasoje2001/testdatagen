@@ -1,0 +1,157 @@
+schema UniversitySystem {
+
+    description: "Example for issue #21 - complex references"
+    seed: 2026
+    strategy: smart
+    combination_strategy: pairwise
+
+    entity Professor {
+
+        fields {
+
+            id: uuid
+
+            fullName: fullName
+
+            email: email {
+                unique
+            }
+
+            department: enum [
+                "Computer Science",
+                "Mathematics",
+                "Physics",
+                "Biology"
+            ] {
+                coverage 100
+            }
+
+            salary: number {
+                range 50000..200000,
+                boundary,
+                partition 5
+            }
+        }
+
+        config {
+            generate: 12
+        }
+    }
+
+    entity Course {
+
+        fields {
+
+            id: uuid
+
+            title: string
+
+            ects: number {
+                range 3..12,
+                boundary
+            }
+
+            semester: enum [
+                "Winter",
+                "Summer"
+            ]
+
+            professor: ref Professor
+        }
+
+        config {
+            generate: 20
+        }
+    }
+
+    entity Student {
+
+        fields {
+
+            id: uuid
+
+            firstName: firstName
+
+            lastName: lastName
+
+            email: email {
+                unique
+            }
+
+            year: number {
+                range 1..4,
+                boundary
+            }
+
+            gpa: number {
+                range 5..10,
+                precision 2,
+                boundary
+            }
+
+            enrolledCourses: ref Course[] count 1..8 boundary
+        }
+
+        config {
+            generate: 40
+            combination_strategy: pairwise
+        }
+    }
+
+    entity Exam {
+
+        fields {
+
+            id: uuid
+
+            student: ref Student
+
+            course: ref Course
+
+            attempt: number {
+                range 1..5,
+                boundary
+            }
+
+            points: number {
+                range 0..100,
+                boundary,
+                partition 5
+            }
+
+            grade: enum [
+                "5",
+                "6",
+                "7",
+                "8",
+                "9",
+                "10"
+            ] {
+                coverage 100
+            }
+
+            passed: boolean
+        }
+
+        config {
+            generate: 120
+            combination_strategy: full
+
+            include: [
+                {
+                    attempt: 5,
+                    points: 49,
+                    grade: "5",
+                    passed: false
+                },
+
+                {
+                    attempt: 1,
+                    points: 100,
+                    grade: "10",
+                    passed: true
+                }
+            ]
+        }
+    }
+}

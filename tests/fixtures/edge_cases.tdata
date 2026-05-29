@@ -1,0 +1,74 @@
+schema BankingSystem {
+
+    description: "Example for issue #21 - edge cases"
+    seed: 999
+    strategy: smart
+    combination_strategy: pairwise
+
+    entity Customer {
+        fields {
+
+            id: uuid
+
+            firstName: firstName {
+                include [empty]
+            }
+
+            lastName: lastName
+
+            email: email {
+                unique,
+                include [null, empty, invalid]
+            }
+
+            age: number {
+                range 18..120,
+                boundary,
+                partitions [18, 40, 65, 120]
+            }
+
+            phone: phone {
+                include [invalid]
+            }
+
+            country: enum ["Serbia", "Bosnia", "Croatia", "Montenegro", "Hungary", "Romania"] {
+                coverage 100
+            }
+
+            creditScore: number {
+                range 300..850,
+                boundary,
+                partition 4
+            }
+
+            balance: number {
+                range -1000..100000,
+                precision 2,
+                boundary,
+                special ["0", "-1", "99999.99"]
+            }
+
+            website: url {
+                include [invalid]
+            }
+        }
+
+        config {
+            generate: 50
+
+            include: [
+                {
+                    age: 18,
+                    email: null,
+                    balance: 0
+                },
+
+                {
+                    age: 120,
+                    email: "invalid-email",
+                    balance: -1
+                }
+            ]
+        }
+    }
+}

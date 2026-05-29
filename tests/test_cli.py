@@ -69,3 +69,22 @@ def test_syntax_error_handling(runner, tmp_path):
     result = runner.invoke(main, ['validate', str(schema_file)])
     assert result.exit_code == 1
     assert "syntax error" in result.output.lower()
+
+def test_generate_overwrite_behavior(runner, tmp_path):
+    schema_file = tmp_path / "schema.tdg"
+    schema_file.write_text('schema Test { entity T { fields { t: string } } }')
+    output_dir = tmp_path / "output"
+    os.makedirs(output_dir)
+
+    runner.invoke(main, ['generate', str(schema_file), '--output', str(output_dir), '-f', 'sql'])
+    
+    result = runner.invoke(main, ['generate', str(schema_file), '--output', str(output_dir), '-f', 'sql'])
+    assert result.exit_code == 2
+    
+    result_overwrite = runner.invoke(main, [
+        'generate', str(schema_file), 
+        '--output', str(output_dir), 
+        '-f', 'sql', 
+        '--overwrite'
+    ])
+    assert result_overwrite.exit_code == 0
