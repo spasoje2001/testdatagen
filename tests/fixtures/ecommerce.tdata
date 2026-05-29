@@ -54,7 +54,7 @@ schema Ecommerce {
             name: productName
             
             price: number {
-                range 0.01..9999.99,
+                range 0..1000,
                 boundary,
                 precision 2
             }
@@ -62,7 +62,7 @@ schema Ecommerce {
             stock: number {
                 range 0..1000,
                 boundary,
-                special [0, 1, 999, 1000]
+                special ["0", "1", "999", "1000"]
             }
             
             is_available: boolean {
@@ -81,19 +81,16 @@ schema Ecommerce {
             id: uuid
             user: ref User
             
-            items: ref Product[] {
-                count 1..10,
-                boundary
-            }
+            items: ref Product[] count 1..10 boundary
             
             total: number {
-                range 0.01..99999.99.
+                range 0..1000,
                 boundary,
                 precision 2
             }
             
             status: enum ["pending", "processing", "shipped", "delivered", "cancelled"] {
-                coverage: all
+                coverage 100
             }
         }
         
