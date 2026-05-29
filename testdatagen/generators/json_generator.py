@@ -266,7 +266,6 @@ class JSONGenerator:
         return rows
 
 
-
 def generate_json(model, output_dir, overwrite):
     """
     CLI interface for the JSONGenerator class.
