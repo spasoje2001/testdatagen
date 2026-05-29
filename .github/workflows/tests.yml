@@ -18,7 +18,6 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements.txt
           pip install pytest pytest-cov
-          pip install pytest pytest-cov lsprotocol
           
       - name: Run tests with coverage
         run: |
