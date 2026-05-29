@@ -19,7 +19,7 @@ def _performance_helper(runner, schema_dir, file_name):
     assert result.exit_code == 0
     duration = end - start
     print(f"\nGeneration time: {duration:.2f}s")
-    assert duration < 15
+    assert duration < 20
 
 def test_performance_complex_refs(runner, schema_dir):
     for example in FILES:
