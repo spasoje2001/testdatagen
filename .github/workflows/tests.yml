@@ -21,5 +21,4 @@ jobs:
           
       - name: Run tests with coverage
         run: |
-          # Pokreće testove i zahteva minimalno 80% pokrivenosti
           pytest --cov=testdatagen --cov-fail-under=80 tests/
