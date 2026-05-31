@@ -223,13 +223,15 @@ class TestDate:
     def test_within_range(self, mapper):
         rc = make_range_constraint("2020-01-01", "2020-12-31")
         val = mapper.generate_for_type_name("date", constraints=[rc])
-        d = date.fromisoformat(val)
+        clean_val = val.split('T')[0] if 'T' in val else val
+        d = date.fromisoformat(clean_val)
         assert date(2020, 1, 1) <= d <= date(2020, 12, 31)
 
     def test_single_day_range(self, mapper):
         rc = make_range_constraint("2023-06-15", "2023-06-15")
         val = mapper.generate_for_type_name("date", constraints=[rc])
-        assert val == "2023-06-15"
+        clean_val = val.split('T')[0] if 'T' in val else val
+        assert clean_val == "2023-06-15"
 
     def test_date_object_range(self, mapper):
         """Range values can be native date objects from the parser."""

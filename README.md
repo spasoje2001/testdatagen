@@ -35,7 +35,7 @@ This is an example of a test data schema defined using TestDataGen.
 ```
 schema Ecommerce {
     
-    description: "Test data for e-commerce application"
+    description: "Example for issue #21 - e-commerce"
     seed: 12345
     strategy: smart
     combination_strategy: pairwise
@@ -45,30 +45,32 @@ schema Ecommerce {
             id: uuid
             
             email: email {
-                unique: true
-                include: [null, empty, invalid]
+                unique,
+                include[null, empty, invalid]
             }
             
-            age: number range 18-120 {
-                boundary: true
-                partitions: 3
+            age: number {
+                range 18..120,
+                boundary,
+                partitions[3]
             }
             
             status: enum ["active", "inactive", "banned"] {
-                coverage: all
+                coverage 100
             }
             
-            balance: number range 0-10000 {
-                boundary: true
-                partition: false
+            balance: number {
+                range 0..10000,
+                boundary
             }
             
             name: fullName {
-                strategy: random
+                strategy random
             }
             
-            created_at: date range "2020-01-01" to "2025-12-31" {
-                boundary: true
+            created_at: date {
+                range "2020-01-01".."2025-12-31",
+                boundary
             }
         }
         
@@ -86,18 +88,20 @@ schema Ecommerce {
             id: uuid
             name: productName
             
-            price: number range 0.01-9999.99 {
-                boundary: true
-                precision: 2
+            price: number {
+                range 0..1000,
+                boundary,
+                precision 2
             }
             
-            stock: number range 0-1000 {
-                boundary: true
-                special: [0, 1, 999, 1000]
+            stock: number {
+                range 0..1000,
+                boundary,
+                special ["0", "1", "999", "1000"]
             }
             
             is_available: boolean {
-                coverage: all
+                coverage 100
             }
         }
         
@@ -112,17 +116,16 @@ schema Ecommerce {
             id: uuid
             user: ref User
             
-            items: ref Product[] count 1-10 {
-                boundary: true
-            }
+            items: ref Product[] count 1..10 boundary
             
-            total: number range 0.01-99999.99 {
-                boundary: true
-                precision: 2
+            total: number {
+                range 0..1000,
+                boundary,
+                precision 2
             }
             
             status: enum ["pending", "processing", "shipped", "delivered", "cancelled"] {
-                coverage: all
+                coverage 100
             }
         }
         
@@ -131,6 +134,7 @@ schema Ecommerce {
         }
     }
 }
+
 ```
 
 ### Generated SQL Example (`seed.sql`)
