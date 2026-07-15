@@ -3,7 +3,7 @@ schema Ecommerce {
     description: "Example for issue #21 - e-commerce"
     seed: 12345
     strategy: smart
-    combination_strategy: pairwise
+    combination_strategy: full
     
     entity User {
         fields {

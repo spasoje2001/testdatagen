@@ -130,6 +130,14 @@ def _is_simple_ref(field) -> bool:
         and not bool(getattr(field.type, "array", False))
     )
 
+def _is_unique(field) -> bool:
+    return any(c.__class__.__name__ == "UniqueConstraint" for c in getattr(field, "constraints", []))
+
+def _requires_unique_generation(field) -> bool:
+    return (
+        _is_unique(field)
+        or _field_type_name(field.type) in ("uuid", "email")
+    )
 
 # ---------------------------------------------------------------------------
 # SQL value formatting
@@ -212,7 +220,7 @@ def _topological_sort(entities) -> List:
 # Value collection from strategy engine
 # ---------------------------------------------------------------------------
 
-def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMapper) -> List[Any]:
+def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMapper, generate_count: int) -> List[Any]:
     """
     Produce the list of candidate values for one field by consulting the
     strategy engine.  Returns a non-empty list in all cases.
@@ -231,6 +239,8 @@ def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMappe
     special_c    = _get_constraint(constraints, "SpecialConstraint")
     precision_c  = _get_constraint(constraints, "PrecisionConstraint")
     precision    = precision_c.value if precision_c else 0
+
+    count = round(generate_count/4)
 
     values: List[Any] = []
 
@@ -289,7 +299,7 @@ def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMappe
             edge = generate_edge_cases(ft_name, include_values=list(include_c.values))
             values += [r["value"] for r in edge]
         if not values:
-            values = [mapper.generate_for_type_name(ft_name, constraints)]
+            values = mapper.generate_for_type_name_many(ft_name, constraints, count)
 
         return _deduplicate(values)
 
@@ -300,9 +310,8 @@ def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMappe
         edge_values = [r["value"] for r in edge]
     if special_c:
         edge_values += list(special_c.values)
-
-    faker_val = mapper.generate_for_type_name(ft_name, constraints)
-    return _deduplicate([faker_val] + edge_values) or [faker_val]
+    faker_val = mapper.generate_for_type_name_many(ft_name, constraints, count)
+    return _deduplicate(faker_val + edge_values) or faker_val
 
 
 def _deduplicate(values: List[Any]) -> List[Any]:
@@ -339,7 +348,7 @@ def _combine_and_pad(
     elif strategy == "each-used":
         rows = each_used_combination(field_values, seed=seed)
     else:   # pairwise (default)
-        rows = pairwise_combination(field_values, seed=seed)
+        rows = pairwise_combination(field_values, seed=seed, limit=generate)
 
     # Pad up to generate count with random picks from each field's value list
     if len(rows) < generate:
@@ -411,10 +420,13 @@ class SQLGenerator:
             normal_fields = [f for f in entity.fields if not _is_array_ref(f)]
             array_fields  = [f for f in entity.fields if _is_array_ref(f)]
 
+            combo_fields = [f for f in normal_fields if not _requires_unique_generation(f)]
+            unique_fields = [f for f in normal_fields if _requires_unique_generation(f)]
+
             # 1. Collect strategy values
             field_values: Dict[str, List[Any]] = {
-                field.name: _collect_strategy_values(field, global_strategy, self._mapper)
-                for field in normal_fields
+                field.name: _collect_strategy_values(field, global_strategy, self._mapper, generate)
+                for field in combo_fields
             }
 
             # 2. Combine + pad to generate count
@@ -424,13 +436,19 @@ class SQLGenerator:
             include_rows = [_include_to_row(tc, entity.fields) for tc in includes]
             rows = (include_rows + rows)[:generate]
 
-            # 4. Resolve FK refs
+            # 4. Adding unique fields
+            for row in rows:
+                for f in unique_fields:
+                    if row.get(f.name) is None:
+                        row[f.name] = self._mapper.generate_for_type_name(_field_type_name(f.type), f.constraints)
+
+             # 5. Resolve FK refs
             rows = self._resolve_refs(rows, normal_fields)
 
-            # 5. Track IDs for downstream FK resolution
+            # 6. Track IDs for downstream FK resolution
             self._store_ids(entity, rows)
 
-            # 6. Junction table rows for array-ref fields
+            # 7. Junction table rows for array-ref fields
             for arr_field in array_fields:
                 jt_rows = self._build_junction_rows(entity, arr_field, rows)
                 if jt_rows:
@@ -447,7 +465,7 @@ class SQLGenerator:
                         ],
                     })
 
-            # 7. Format for template
+            # 8. Format for template
             columns = [f.name for f in normal_fields]
             entity_data.append({
                 "name":       entity.name,

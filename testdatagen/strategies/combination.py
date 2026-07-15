@@ -139,7 +139,7 @@ def each_used_combination_count(field_values):
     return max(lengths)
 
 
-def pairwise_combination(field_values, seed=None):
+def pairwise_combination(field_values, seed=None, limit=None):
     """
     Generate combinations where every pair of values from any two fields
     appears at least once, using a greedy All-Pairs algorithm.
@@ -190,6 +190,8 @@ def pairwise_combination(field_values, seed=None):
     while uncovered:
         best_combo = _find_best_row(field_names, field_values, uncovered, rng)
         combinations.append(best_combo)
+        if (len(combinations) >= limit):
+            break
 
         # Remove all pairs covered by this row
         for i in range(n_fields):
@@ -304,6 +306,8 @@ def _find_best_row(field_names, field_values, uncovered, rng):
             row[field_names[k]] = other_vals[idx]
 
         score = _pairs_covered_by_row(row, field_names, uncovered)
+        if score == best_score:
+            break
         if score > best_score:
             best_score = score
             best_row = row

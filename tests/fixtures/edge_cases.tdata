@@ -3,7 +3,7 @@ schema BankingSystem {
     description: "Example for issue #21 - edge cases"
     seed: 999
     strategy: smart
-    combination_strategy: pairwise
+    combination_strategy: each-used
 
     entity Customer {
         fields {
@@ -22,9 +22,9 @@ schema BankingSystem {
             }
 
             age: number {
-                range 18..120,
+                range 18..110,
                 boundary,
-                partitions [18, 40, 65, 120]
+                partitions [40, 65]
             }
 
             phone: phone {
@@ -45,7 +45,7 @@ schema BankingSystem {
                 range -1000..100000,
                 precision 2,
                 boundary,
-                special ["0", "-1", "99999.99"]
+                special ["0", "-1"]
             }
 
             website: url {

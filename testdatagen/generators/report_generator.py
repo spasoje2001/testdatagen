@@ -543,7 +543,7 @@ class ReportGenerator:
 
             # Generate the rows (same pipeline as sql/json generators)
             field_values: Dict[str, List[Any]] = {
-                field.name: _collect_strategy_values(field, global_strategy, self._mapper)
+                field.name: _collect_strategy_values(field, global_strategy, self._mapper, generate)
                 for field in normal_fields
             }
             rows = _combine_and_pad(field_values, combo_strat, self.seed, generate)
