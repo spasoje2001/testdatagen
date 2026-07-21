@@ -136,7 +136,7 @@ def _is_unique(field) -> bool:
 def _requires_unique_generation(field) -> bool:
     return (
         _is_unique(field)
-        or _field_type_name(field.type) in ("uuid", "email")
+        or _field_type_name(field.type) in ("uuid", )
     )
 
 # ---------------------------------------------------------------------------
@@ -340,6 +340,9 @@ def _combine_and_pad(
     Apply the chosen combination strategy, then pad with random rows up to
     *generate* count if the strategy produced fewer rows.
     """
+    empty = [name for name, vals in field_values.items() if not vals]
+    if empty:
+        raise ValueError(f"Fields have no candidate values: {empty}")
     if not field_values:
         return []
 
@@ -348,7 +351,7 @@ def _combine_and_pad(
     elif strategy == "each-used":
         rows = each_used_combination(field_values, seed=seed)
     else:   # pairwise (default)
-        rows = pairwise_combination(field_values, seed=seed, limit=generate)
+        rows = pairwise_combination(field_values, seed=seed)
 
     # Pad up to generate count with random picks from each field's value list
     if len(rows) < generate:
