@@ -220,7 +220,7 @@ def _topological_sort(entities) -> List:
 # Value collection from strategy engine
 # ---------------------------------------------------------------------------
 
-def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMapper, generate_count: int) -> List[Any]:
+def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMapper, generate_count: int, divisor: int = 4) -> List[Any]:
     """
     Produce the list of candidate values for one field by consulting the
     strategy engine.  Returns a non-empty list in all cases.
@@ -240,7 +240,7 @@ def _collect_strategy_values(field, global_strategy: str, mapper: FakerTypeMappe
     precision_c  = _get_constraint(constraints, "PrecisionConstraint")
     precision    = precision_c.value if precision_c else 0
 
-    count = round(generate_count/4)
+    count = round(generate_count/divisor)
 
     values: List[Any] = []
 
