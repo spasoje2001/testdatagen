@@ -38,7 +38,7 @@ SimpleTypeName:
     'uuid' | 'email' | 'fullName' | 'firstName' | 'lastName' |
     'number' | 'boolean' | 'datetime' | 'date' | 'string' |
     'productName' | 'companyName' | 'address' | 'city' |
-    'country' | 'phone' | 'url'
+    'country' | 'phone' | 'url' | 'username'
 ;
 
 EnumType:

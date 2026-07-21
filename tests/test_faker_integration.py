@@ -132,6 +132,12 @@ class TestNames:
 
     def test_last_name_non_empty(self, mapper):
         assert mapper.generate_for_type_name("lastName") != ""
+        
+    def test_username_is_string(self, mapper):
+        assert isinstance(mapper.generate_for_type_name("username"), str)
+        
+    def test_username_non_empty(self, mapper):
+        assert mapper.generate_for_type_name("username") != ""
 
 
 # ===========================================================================

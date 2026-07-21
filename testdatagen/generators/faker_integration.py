@@ -140,6 +140,7 @@ class FakerTypeMapper:
             "fullName":    self._gen_full_name,
             "firstName":   self._gen_first_name,
             "lastName":    self._gen_last_name,
+            "username": self._gen_username,
             "phone":       self._gen_phone,
             # --- numeric ---
             "number":      self._gen_number,
@@ -201,6 +202,9 @@ class FakerTypeMapper:
 
     def _gen_last_name(self, constraints: list) -> str:
         return self.faker.last_name()
+        
+    def _gen_username(self, constraints: list) -> str:
+        return self.faker.user_name()
 
     def _gen_phone(self, constraints: list) -> str:
         return self.faker.phone_number()

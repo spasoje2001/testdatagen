@@ -68,6 +68,7 @@ TYPES_DICTIONARY = {
     "fullName": "Generates a realistic full name (Firstname + Lastname).",
     "firstName": "Generates a randomized common first name.",
     "lastName": "Generates a randomized common last name.",
+    "username": "Generates a randomized common username.",
     "datetime": "Generates a full ISO timestamp string.",
     "date": "Generates a standard calendar date string (YYYY-MM-DD).",
     "productName": "Generates realistic product names.",

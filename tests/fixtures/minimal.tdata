@@ -9,7 +9,7 @@ schema Blog {
         fields {
             id: uuid
 
-            username: string {
+            username: username {
                 unique
             }
 
