@@ -49,6 +49,8 @@ from testdatagen.generators.sql_generator import (
     _field_type_name,
     _is_array_ref,
     _is_simple_ref,
+    _is_unique,
+    _requires_unique_generation,
     _deduplicate,
 )
 
@@ -152,10 +154,13 @@ class JSONGenerator:
             normal_fields = [f for f in entity.fields if not _is_array_ref(f)]
             array_fields  = [f for f in entity.fields if _is_array_ref(f)]
 
+            combo_fields = [f for f in normal_fields if not _requires_unique_generation(f)]
+            unique_fields = [f for f in normal_fields if _requires_unique_generation(f)]
+
             # 1. Collect strategy values for normal fields
             field_values: Dict[str, List[Any]] = {
-                field.name: _collect_strategy_values(field, global_strategy, self._mapper)
-                for field in normal_fields
+                field.name: _collect_strategy_values(field, global_strategy, self._mapper, generate)
+                for field in combo_fields
             }
 
             # 2. Combine + pad to generate count
@@ -165,17 +170,23 @@ class JSONGenerator:
             include_rows = [_include_to_row(tc, entity.fields) for tc in includes]
             rows = (include_rows + rows)[:generate]
 
-            # 4. Resolve simple FK refs
+            # 4. Adding unique fields
+            for row in rows:
+                for f in unique_fields:
+                    if row.get(f.name) is None:
+                        row[f.name] = self._mapper.generate_for_type_name(_field_type_name(f.type), f.constraints)
+
+             # 5. Resolve FK refs
             rows = self._resolve_refs(rows, normal_fields)
 
-            # 5. Track IDs for downstream FK resolution
+            # 6. Track IDs for downstream FK resolution
             self._store_ids(entity, rows)
 
-            # 6. Attach array-ref fields as lists of IDs on each row
+            # 7. Attach array-ref fields as lists of IDs on each row
             if array_fields:
                 rows = self._attach_array_refs(entity, array_fields, rows)
 
-            # 7. Convert all values to JSON-safe types
+            # 8. Convert all values to JSON-safe types
             json_rows = [
                 {col: format_value_json(row.get(col)) for col in row}
                 for row in rows

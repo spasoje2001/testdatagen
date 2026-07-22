@@ -7,7 +7,9 @@ schema Blog {
 
     entity User {
         fields {
-            id: uuid
+            id: uuid {
+                unique
+            }
 
             username: string {
                 unique
@@ -31,7 +33,9 @@ schema Blog {
 
     entity Post {
         fields {
-            id: uuid
+            id: uuid {
+                unique
+            }
 
             title: string
 

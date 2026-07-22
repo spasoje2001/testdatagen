@@ -44,6 +44,7 @@ from testdatagen.generators.sql_generator import (
     _include_cases,
     _is_array_ref,
     _is_simple_ref,
+    _requires_unique_generation,
 )
 from testdatagen.generators.faker_integration import FakerTypeMapper
 
@@ -541,14 +542,28 @@ class ReportGenerator:
 
             normal_fields = [f for f in entity.fields if not _is_array_ref(f)]
 
-            # Generate the rows (same pipeline as sql/json generators)
-            field_values: Dict[str, List[Any]] = {
-                field.name: _collect_strategy_values(field, global_strategy, self._mapper)
-                for field in normal_fields
+            combo_fields = [f for f in normal_fields if not _requires_unique_generation(f)]
+            unique_fields = [f for f in normal_fields if _requires_unique_generation(f)]
+
+            field_values = {
+                field.name: _collect_strategy_values(field, global_strategy, self._mapper, generate)
+                for field in combo_fields
             }
+
             rows = _combine_and_pad(field_values, combo_strat, self.seed, generate)
+
             include_rows = [_include_to_row(tc, entity.fields) for tc in includes]
             rows = (include_rows + rows)[:generate]
+
+            # dodavanje unique polja
+            for row in rows:
+                for f in unique_fields:
+                    if row.get(f.name) is None:
+                        row[f.name] = self._mapper.generate_for_type_name(
+                            _field_type_name(f.type),
+                            f.constraints,
+                        )
+
             rows = self._resolve_refs(rows, normal_fields)
             self._store_ids(entity, rows)
 
