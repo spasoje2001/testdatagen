@@ -23,7 +23,7 @@ TestDataGen enables defining data schemas with constraints and relationships, th
 - **Entity Relationships** - Define references between entities with automatic foreign key generation
 - **Edge Case Support** - Explicitly include `null`, `empty`, or `invalid` values for robustness testing
 - **Custom Test Cases** - Define explicit test cases alongside auto-generated data for regression testing
-- **Multiple Output Formats** - Generate SQL (PostgreSQL), JSON, and HTML Coverage Reports
+- **Multiple Output Formats** - Generate SQL (PostgreSQL), JSON, CSV and HTML Coverage Reports
 - **Reproducible Results** - Seed-based generation for consistent, reproducible test datasets
 
 ## Example
@@ -478,7 +478,7 @@ pytest -v (for details)
 Generate test data from a schema file:
 
 ```bash
-testdatagen generate ecommerce.tdata --output ./output --format sql,json,report
+testdatagen generate ecommerce.tdata --output ./output --format sql,json,report,csv
 ```
 
 #### CLI Options
@@ -486,7 +486,7 @@ testdatagen generate ecommerce.tdata --output ./output --format sql,json,report
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--output`, `-o` | Output directory for generated files | Current directory |
-| `--format`, `-f` | Output formats (comma-separated): `sql`, `json`, `report` | `sql` |
+| `--format`, `-f` | Output formats (comma-separated): `sql`, `json`, `report`, `csv` | `sql` |
 | `--seed`, `-s` | Override seed for reproducible generation | Schema seed or random |
 | `--overwrite` | Overwrite existing files | `false` |
 
@@ -499,7 +499,7 @@ testdatagen generate schema.tdata --format sql
 
 Generate all formats with custom seed:
 ```bash
-testdatagen generate schema.tdata --format sql,json,report --seed 42
+testdatagen generate schema.tdata --format sql,json,report,csv --seed 42
 ```
 
 Validate schema without generating:
