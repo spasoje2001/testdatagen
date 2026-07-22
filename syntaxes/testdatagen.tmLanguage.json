@@ -40,7 +40,7 @@
       "patterns": [
         {
           "name": "storage.type.testdatagen",
-          "match": "\\b(uuid|email|fullName|firstName|lastName|number|boolean|datetime|date|string|productName|companyName|address|city|country|phone|url)\\b"
+          "match": "\\b(uuid|email|fullName|firstName|lastName|username|number|boolean|datetime|date|string|productName|companyName|address|city|country|phone|url)\\b"
         }
       ]
     },

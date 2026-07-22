@@ -330,6 +330,7 @@ schema Example {
 | `fullName` | Full person name | `John Doe` |
 | `firstName` | First name | `John` |
 | `lastName` | Last name | `Doe` |
+| `username` | Username | `johndoe` |
 | `number` | Numeric value (with optional range) | `42`, `3.14` |
 | `boolean` | Boolean value | `true`, `false` |
 | `date` | Date (with optional range) | `2024-01-15` |

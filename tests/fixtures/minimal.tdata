@@ -11,7 +11,7 @@ schema Blog {
                 unique
             }
 
-            username: string {
+            username: username {
                 unique
             }
 
