@@ -88,7 +88,7 @@ def format_value_csv(value: Any) -> Any:
     if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, list):
-        return ";".join(format_value_csv(v) for v in value)
+        return ";".join("" if v is None else str(format_value_csv(v)) for v in value)
     if isinstance(value, str):
         return value
     return str(value)
@@ -339,7 +339,7 @@ class CSVGenerator:
             f.write(f"Total records: {total}\n\n")
 
             f.write("Entities\n")
-            f.write("-----------------")
+            f.write("-----------------\n")
             for entity_name, rows in entities.items():
                 f.write(f"{entity_name}: {len(rows)} records\n")
 
