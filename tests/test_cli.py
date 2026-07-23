@@ -21,8 +21,14 @@ def test_cli_version(runner):
     assert "version" in result.output.lower()
 
 
-def test_supported_formats_contains_csv():
-    assert "csv" in SUPPORTED_FORMATS
+def test_supported_formats():
+    assert {
+        "sql",
+        "json",
+        "csv",
+        "yaml",
+        "report",
+    }.issubset(SUPPORTED_FORMATS)
 
 
 def test_invalid_format_option(runner, tmp_path):
@@ -187,6 +193,39 @@ def test_generate_csv_format(runner, tmp_path):
     assert (csv_dir / "generation_details.txt").exists()
 
 
+def test_generate_yaml_format(runner, tmp_path):
+    schema_file = tmp_path / "schema.tdg"
+    schema_file.write_text(
+        """
+        schema TestSchema {
+            entity Test {
+                fields {
+                    id: uuid
+                    name: string
+                }
+            }
+        }
+        """
+    )
+
+    output_dir = tmp_path / "yaml"
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "yaml",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (output_dir / "TestSchema.yaml").exists()
+
+
 def test_generation_details_created(runner, tmp_path):
     schema_file = tmp_path / "schema.tdg"
     schema_file.write_text(
@@ -257,7 +296,7 @@ def test_generate_multiple_formats(runner, tmp_path):
             "--output",
             str(output_dir),
             "-f",
-            "sql,json,csv",
+            "sql,json,csv,yaml",
         ],
     )
 
@@ -266,6 +305,7 @@ def test_generate_multiple_formats(runner, tmp_path):
     assert (output_dir / "TestSchema.sql").exists()
     assert (output_dir / "TestSchema.json").exists()
     assert (output_dir / "TestSchema").exists()
+    assert (output_dir / "TestSchema.yaml").exists()
 
 
 # ==========================================
@@ -408,6 +448,64 @@ def test_generate_overwrite_csv(runner, tmp_path):
             str(output_dir),
             "-f",
             "csv",
+            "--overwrite",
+        ],
+    )
+
+    assert result.exit_code == 0
+
+
+def test_generate_overwrite_yaml(runner, tmp_path):
+    schema_file = tmp_path / "schema.tdg"
+    schema_file.write_text(
+        """
+        schema TestSchema {
+            entity Test {
+                fields {
+                    id: uuid
+                }
+            }
+        }
+        """
+    )
+
+    output_dir = tmp_path / "yaml"
+
+    runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "yaml",
+        ],
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "yaml",
+        ],
+    )
+
+    assert result.exit_code != 0
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "yaml",
             "--overwrite",
         ],
     )
