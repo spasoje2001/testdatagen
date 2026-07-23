@@ -13,11 +13,12 @@ from testdatagen.generators.sql_generator import generate_sql
 from testdatagen.generators.json_generator import generate_json
 from testdatagen.generators.report_generator import generate_report
 from testdatagen.generators.csv_generator import generate_csv
+from testdatagen.generators.yaml_generator import generate_yaml
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
-SUPPORTED_FORMATS = ['sql', 'json', 'report', 'csv']
+SUPPORTED_FORMATS = ['sql', 'json', 'report', 'csv', 'yaml']
 
 @click.group()
 @click.version_option(version="0.1.0")
@@ -28,7 +29,7 @@ def main():
 @main.command()
 @click.argument('schema_file', type=click.STRING)
 @click.option('--output', '-o', default='.', type=click.Path(), help='Output directory')
-@click.option('--format', '-f', default='sql', help='Comma-separated formats (sql, json, report, csv)')
+@click.option('--format', '-f', default='sql', help='Comma-separated formats (sql, json, report, csv, yaml)')
 @click.option('--seed', '-s', type=int, help='Override random seed for reproducibility')
 @click.option('--overwrite', is_flag=True, help='Overwrite existing files in output directory')
 def generate(schema_file, output, format, seed, overwrite):
@@ -78,6 +79,8 @@ def generate(schema_file, output, format, seed, overwrite):
                     generate_report(model, output, overwrite)
                 elif fmt == 'csv':
                     generate_csv(model, output, overwrite)
+                elif fmt == 'yaml':
+                    generate_yaml(model, output, overwrite)
 
         click.secho(f"Success! Data generated in '{output}'", fg='green', bold=True)
 
