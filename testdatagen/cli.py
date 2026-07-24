@@ -14,11 +14,12 @@ from testdatagen.generators.json_generator import generate_json
 from testdatagen.generators.report_generator import generate_report
 from testdatagen.generators.csv_generator import generate_csv
 from testdatagen.generators.yaml_generator import generate_yaml
+from testdatagen.generators.neo4j_generator import generate_neo4j
 
 setup_logging()
 logger = logging.getLogger(__name__)
 
-SUPPORTED_FORMATS = ['sql', 'json', 'report', 'csv', 'yaml']
+SUPPORTED_FORMATS = ['sql', 'json', 'report', 'csv', 'yaml', 'neo4j']
 
 @click.group()
 @click.version_option(version="0.1.0")
@@ -29,7 +30,7 @@ def main():
 @main.command()
 @click.argument('schema_file', type=click.STRING)
 @click.option('--output', '-o', default='.', type=click.Path(), help='Output directory')
-@click.option('--format', '-f', default='sql', help='Comma-separated formats (sql, json, report, csv, yaml)')
+@click.option('--format', '-f', default='sql', help='Comma-separated formats (sql, json, report, csv, yaml, neo4j)')
 @click.option('--seed', '-s', type=int, help='Override random seed for reproducibility')
 @click.option('--overwrite', is_flag=True, help='Overwrite existing files in output directory')
 def generate(schema_file, output, format, seed, overwrite):
@@ -81,6 +82,8 @@ def generate(schema_file, output, format, seed, overwrite):
                     generate_csv(model, output, overwrite)
                 elif fmt == 'yaml':
                     generate_yaml(model, output, overwrite)
+                elif fmt == 'neo4j':
+                    generate_neo4j(model, output, overwrite)
 
         click.secho(f"Success! Data generated in '{output}'", fg='green', bold=True)
 

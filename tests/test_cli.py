@@ -28,6 +28,7 @@ def test_supported_formats():
         "csv",
         "yaml",
         "report",
+        "neo4j"
     }.issubset(SUPPORTED_FORMATS)
 
 
@@ -193,39 +194,6 @@ def test_generate_csv_format(runner, tmp_path):
     assert (csv_dir / "generation_details.txt").exists()
 
 
-def test_generate_yaml_format(runner, tmp_path):
-    schema_file = tmp_path / "schema.tdg"
-    schema_file.write_text(
-        """
-        schema TestSchema {
-            entity Test {
-                fields {
-                    id: uuid
-                    name: string
-                }
-            }
-        }
-        """
-    )
-
-    output_dir = tmp_path / "yaml"
-
-    result = runner.invoke(
-        main,
-        [
-            "generate",
-            str(schema_file),
-            "--output",
-            str(output_dir),
-            "-f",
-            "yaml",
-        ],
-    )
-
-    assert result.exit_code == 0
-    assert (output_dir / "TestSchema.yaml").exists()
-
-
 def test_generation_details_created(runner, tmp_path):
     schema_file = tmp_path / "schema.tdg"
     schema_file.write_text(
@@ -271,6 +239,73 @@ def test_generation_details_created(runner, tmp_path):
     assert "Total records:" in content
 
 
+def test_generate_yaml_format(runner, tmp_path):
+    schema_file = tmp_path / "schema.tdg"
+    schema_file.write_text(
+        """
+        schema TestSchema {
+            entity Test {
+                fields {
+                    id: uuid
+                    name: string
+                }
+            }
+        }
+        """
+    )
+
+    output_dir = tmp_path / "yaml"
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "yaml",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (output_dir / "TestSchema.yaml").exists()
+
+
+def test_generate_neo4j_format(runner, tmp_path):
+    schema_file = tmp_path / "schema.tdg"
+    schema_file.write_text(
+        """
+        schema TestSchema {
+            entity Test {
+                fields {
+                    id: uuid
+                    name: string
+                }
+            }
+        }
+        """
+    )
+
+    output_dir = tmp_path / "neo4j"
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "neo4j",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (output_dir / "TestSchema.cypher").exists()
+
+
+
 def test_generate_multiple_formats(runner, tmp_path):
     schema_file = tmp_path / "schema.tdg"
     schema_file.write_text(
@@ -296,7 +331,7 @@ def test_generate_multiple_formats(runner, tmp_path):
             "--output",
             str(output_dir),
             "-f",
-            "sql,json,csv,yaml",
+            "sql,json,report,csv,yaml,neo4j",
         ],
     )
 
@@ -304,8 +339,10 @@ def test_generate_multiple_formats(runner, tmp_path):
 
     assert (output_dir / "TestSchema.sql").exists()
     assert (output_dir / "TestSchema.json").exists()
+    assert (output_dir / "TestSchema.html").exists()
     assert (output_dir / "TestSchema").exists()
     assert (output_dir / "TestSchema.yaml").exists()
+    assert (output_dir / "TestSchema.cypher").exists()
 
 
 # ==========================================
@@ -506,6 +543,64 @@ def test_generate_overwrite_yaml(runner, tmp_path):
             str(output_dir),
             "-f",
             "yaml",
+            "--overwrite",
+        ],
+    )
+
+    assert result.exit_code == 0
+
+
+def test_generate_overwrite_neo4j(runner, tmp_path):
+    schema_file = tmp_path / "schema.tdg"
+    schema_file.write_text(
+        """
+        schema TestSchema {
+            entity Test {
+                fields {
+                    id: uuid
+                }
+            }
+        }
+        """
+    )
+
+    output_dir = tmp_path / "neo4j"
+
+    runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "neo4j",
+        ],
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "neo4j",
+        ],
+    )
+
+    assert result.exit_code != 0
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "neo4j",
             "--overwrite",
         ],
     )
