@@ -23,7 +23,7 @@ TestDataGen enables defining data schemas with constraints and relationships, th
 - **Entity Relationships** - Define references between entities with automatic foreign key generation
 - **Edge Case Support** - Explicitly include `null`, `empty`, or `invalid` values for robustness testing
 - **Custom Test Cases** - Define explicit test cases alongside auto-generated data for regression testing
-- **Multiple Output Formats** - Generate SQL (PostgreSQL), JSON, CSV, YAML and HTML Coverage Reports
+- **Multiple Output Formats** - Generate SQL (PostgreSQL), JSON, CSV, YAML, CYPHER (Neo4J) and HTML Coverage Reports
 - **Reproducible Results** - Seed-based generation for consistent, reproducible test datasets
 
 ## Example
@@ -479,7 +479,7 @@ pytest -v (for details)
 Generate test data from a schema file:
 
 ```bash
-testdatagen generate ecommerce.tdata --output ./output --format sql,json,report,csv,yaml
+testdatagen generate ecommerce.tdata --output ./output --format sql,json,report,csv,yaml,neo4j
 ```
 
 #### CLI Options
@@ -487,9 +487,22 @@ testdatagen generate ecommerce.tdata --output ./output --format sql,json,report,
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--output`, `-o` | Output directory for generated files | Current directory |
-| `--format`, `-f` | Output formats (comma-separated): `sql`, `json`, `report`, `csv`, `yaml` | `sql` |
+| `--format`, `-f` | Output formats (comma-separated): `sql`, `json`, `report`, `csv`, `yaml`, `neo4j` | `sql` |
 | `--seed`, `-s` | Override seed for reproducible generation | Schema seed or random |
 | `--overwrite` | Overwrite existing files | `false` |
+
+#### Supported Output Formats
+
+TestDataGen can generate test data in multiple output formats:
+
+| Format | Description |
+|--------|-------------|
+| SQL | SQL INSERT statements for relational databases |
+| JSON | Structured JSON document containing generated entities |
+| CSV | One CSV file per entity for spreadsheet and import/export workflows |
+| YAML | Human-readable YAML representation of generated entities |
+| Neo4j | Cypher script containing node and relationship creation statements for Neo4j graph databases |
+| Report | Human-readable generation report with statistics |
 
 #### Examples
 
@@ -500,7 +513,7 @@ testdatagen generate schema.tdata --format sql
 
 Generate all formats with custom seed:
 ```bash
-testdatagen generate schema.tdata --format sql,json,report,csv,yaml --seed 42
+testdatagen generate schema.tdata --format sql,json,report,csv,yaml,neo4j --seed 42
 ```
 
 Validate schema without generating:
