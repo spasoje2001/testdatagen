@@ -65,6 +65,14 @@ INSERT INTO {{ jt.name }} ({{ jt.columns|join(', ') }}) VALUES
 {% endfor %}
 """
 
+
+def _schema_entities(schema):
+    return [
+        e for e in schema.elements
+        if e.__class__.__name__ == "Entity"
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Config option helpers  (options is a flat list, differentiated by class name)
 # ---------------------------------------------------------------------------
@@ -407,7 +415,7 @@ class SQLGenerator:
     def render(self) -> str:
         """Return the complete SQL as a string."""
         schema          = self.model
-        entities        = _topological_sort(list(schema.entities))
+        entities        = _topological_sort(list(_schema_entities(schema)))
         global_strategy = getattr(schema, "strategy", "random") or "random"
         global_combo    = getattr(schema, "combination_strategy", "pairwise") or "pairwise"
 

@@ -52,6 +52,7 @@ from testdatagen.generators.sql_generator import (
     _is_unique,
     _requires_unique_generation,
     _deduplicate,
+    _schema_entities
 )
 
 
@@ -139,7 +140,7 @@ class JSONGenerator:
         Useful for programmatic access without parsing JSON.
         """
         schema          = self.model
-        entities        = _topological_sort(list(schema.entities))
+        entities        = _topological_sort(list(_schema_entities(schema)))
         global_strategy = getattr(schema, "strategy", "random") or "random"
         global_combo    = getattr(schema, "combination_strategy", "pairwise") or "pairwise"
 

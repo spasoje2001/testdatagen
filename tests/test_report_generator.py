@@ -16,6 +16,7 @@ from testdatagen.generators.report_generator import (
     _coverage_badge,
 )
 from grammar_loader import load_model_from_str
+from testdatagen.generators.sql_generator import _schema_entities
 
 
 # ===========================================================================
@@ -117,7 +118,7 @@ class TestCalculateFieldCoverage:
             }
         }
         """)
-        field = model.entities[0].fields[0]
+        field = _schema_entities(model)[0].fields[0]
         # BVA for 0..10 (integer): valid boundary values are 0, 1, 9, 10
         result = calculate_field_coverage(field, [0, 1, 9, 10], "random")
         assert result["required"] > 0
@@ -135,7 +136,7 @@ class TestCalculateFieldCoverage:
             }
         }
         """)
-        field = model.entities[0].fields[0]
+        field = _schema_entities(model)[0].fields[0]
         # only provide min value — max boundary values will be missing
         result = calculate_field_coverage(field, [0, 1], "random")
         assert result["missing"]
@@ -152,7 +153,7 @@ class TestCalculateFieldCoverage:
             }
         }
         """)
-        field = model.entities[0].fields[0]
+        field = _schema_entities(model)[0].fields[0]
         # EP with 3 partitions → 3 representative values
         result = calculate_field_coverage(field, [15, 45, 75], "random")
         assert result["required"] == 3
@@ -170,7 +171,7 @@ class TestCalculateFieldCoverage:
             }
         }
         """)
-        field = model.entities[0].fields[0]
+        field = _schema_entities(model)[0].fields[0]
         result = calculate_field_coverage(field, [], "smart")
         # smart = BVA + EP → more required cases than BVA alone
         assert result["required"] > 4   # BVA alone gives 4 valid values for 0..100
@@ -186,7 +187,7 @@ class TestCalculateFieldCoverage:
             }
         }
         """)
-        field = model.entities[0].fields[0]
+        field = _schema_entities(model)[0].fields[0]
         result = calculate_field_coverage(field, [None, "invalid-email-format"], "random")
         assert result["required"] == 2
         assert result["covered"] == 2
@@ -203,7 +204,7 @@ class TestCalculateFieldCoverage:
             }
         }
         """)
-        field = model.entities[0].fields[0]
+        field = _schema_entities(model)[0].fields[0]
         # Only null provided — invalid is missing
         result = calculate_field_coverage(field, [None], "random")
         assert result["covered"] == 1
@@ -221,7 +222,7 @@ class TestCalculateFieldCoverage:
             }
         }
         """)
-        field = model.entities[0].fields[0]
+        field = _schema_entities(model)[0].fields[0]
         result = calculate_field_coverage(field, [], "random")
         assert "BVA" in result["strategy_tags"]
 

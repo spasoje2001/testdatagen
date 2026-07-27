@@ -1,6 +1,7 @@
 import pytest
 from grammar_loader import load_model_from_str
 from textx import TextXSemanticError, TextXSyntaxError
+from testdatagen.generators.sql_generator import _schema_entities
 
 
 def wrap_field(field_definition: str) -> str:
@@ -39,7 +40,7 @@ def wrap_field(field_definition: str) -> str:
 )
 def test_all_simple_field_types_parse(field_type):
     model = load_model_from_str(wrap_field(f"value: {field_type}"))
-    field = model.entities[0].fields[0]
+    field = _schema_entities(model)[0].fields[0]
     assert field.name == "value"
 
 
@@ -47,6 +48,6 @@ def test_enum_field_type_parses():
     model = load_model_from_str(
         wrap_field('status: enum["NEW", "ACTIVE", "BLOCKED"]')
     )
-    field = model.entities[0].fields[0]
+    field = _schema_entities(model)[0].fields[0]
     assert field.type.__class__.__name__ == "EnumType"
     assert field.type.values == ["NEW", "ACTIVE", "BLOCKED"]

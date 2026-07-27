@@ -50,7 +50,15 @@ from testdatagen.generators.sql_generator import (
     _is_array_ref,
     _is_simple_ref,
     _requires_unique_generation,
+    _schema_entities,
 )
+
+
+def _schema_relationships(schema):
+    return [
+        r for r in schema.elements
+        if r.__class__.__name__ == "Relationship"
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +141,7 @@ class Neo4JGenerator:
         relationships before rendering to Cypher.
         """
         schema = self.model
-        entities = _topological_sort(list(schema.entities))
+        entities = _topological_sort(list(_schema_entities(schema)))
         global_strategy = getattr(schema, "strategy", "random") or "random"
         global_combo = getattr(schema, "combination_strategy", "pairwise") or "pairwise"
 
@@ -195,14 +203,6 @@ class Neo4JGenerator:
                 )
             nodes.extend(
                 self._build_nodes(entity, rows)
-            )
-            relationships.extend(
-                self._build_relationships(
-                    entity,
-                    normal_fields,
-                    array_fields,
-                    rows,
-                )
             )
 
         return {

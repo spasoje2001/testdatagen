@@ -64,11 +64,26 @@ def _constraint_name(constraint):
     return constraint.__class__.__name__
 
 
+def _schema_entities(schema):
+    return [
+        e for e in schema.elements
+        if e.__class__.__name__ == "Entity"
+    ]
+
+
+def _schema_relationships(schema):
+    return [
+        r for r in schema.elements
+        if r.__class__.__name__ == "Relationship"
+    ]
+
+
 def _validate_required_schema(schema):
     if not getattr(schema, "name", None):
         raise MissingRequiredValueError("Schema must have a name.", schema)
 
-    entities = getattr(schema, "entities", [])
+    entities = _schema_entities(schema)
+    relationships = _schema_relationships(schema)
     if not entities:
         raise MissingRequiredValueError(
             f"Schema '{schema.name}' must define at least one entity.",
@@ -288,6 +303,111 @@ def _validate_field(field):
                 )
 
 
+def _validate_relationship(relationship):
+    if not getattr(relationship, "name", None):
+        raise MissingRequiredValueError(
+            "Relationship must have a name.",
+            relationship,
+        )
+
+    if not getattr(relationship, "from", None):
+        raise MissingRequiredValueError(
+            f"Relationship '{relationship.name}' must define a source entity.",
+            relationship,
+        )
+
+    if not getattr(relationship, "to", None):
+        raise MissingRequiredValueError(
+            f"Relationship '{relationship.name}' must define a target entity.",
+            relationship,
+        )
+
+    property_names = set()
+
+    for field in getattr(relationship, "properties", []):
+        if field.name in property_names:
+            raise ValidationError(
+                f"Relationship '{relationship.name}': duplicate property '{field.name}'.",
+                field,
+            )
+
+        if field.type.__class__.__name__ == "RefType":
+            raise ValidationError(
+                f"Relationship '{relationship.name}': properties cannot use ref types.",
+                field,
+            )
+        
+        if field.name in {"from", "to"}:
+            raise ValidationError(
+                f"Relationship '{relationship.name}': '{field.name}' is a reserved property name.",
+                field,
+            )
+
+        property_names.add(field.name)
+        _validate_field(field)
+
+    _validate_relationship_config(relationship)
+
+
+def _validate_relationship_config(relationship):
+    config = getattr(relationship, "config", None)
+    if config is None:
+        return
+
+    property_names = {p.name for p in relationship.properties}
+    property_by_name = {p.name: p for p in relationship.properties}
+
+    seen_option_types = set()
+
+    for option in getattr(config, "options", []):
+        option_type = option.__class__.__name__
+
+        if option_type in seen_option_types:
+            raise ValidationError(
+                f"Relationship '{relationship.name}': config option '{option_type}' can appear only once.",
+                option,
+            )
+
+        seen_option_types.add(option_type)
+
+        if option_type == "GenerateOption":
+            if option.generate <= 0:
+                raise InvalidGenerateCountError(
+                    f"Relationship '{relationship.name}': generate must be a positive integer.",
+                    option,
+                )
+
+        elif option_type == "IncludeOption":
+            for test_case in option.include:
+                if not property_names:
+                    raise ValidationError(
+                        f"Relationship '{relationship.name}': include cannot be used without properties.",
+                        option,
+                    )
+
+                assigned = set()
+
+                for assignment in test_case.assignments:
+                    if assignment.name not in property_names:
+                        raise InvalidIncludeFieldError(
+                            f"Relationship '{relationship.name}': include references unknown property '{assignment.name}'.",
+                            assignment,
+                        )
+
+                    if assignment.name in assigned:
+                        raise InvalidIncludeFieldError(
+                            f"Relationship '{relationship.name}': duplicate assignment '{assignment.name}' in include test case.",
+                            assignment,
+                        )
+
+                    assigned.add(assignment.name)
+
+                    _validate_assignment_value_against_field(
+                        property_by_name[assignment.name],
+                        assignment,
+                    )
+
+
 def _is_null_value(value):
     return value == "null"
 
@@ -394,7 +514,7 @@ def _validate_entity_config(entity):
 def _detect_circular_references(schema):
     graph = {}
 
-    for entity in schema.entities:
+    for entity in _schema_entities(schema):
         refs = []
         for field in entity.fields:
             if field.type.__class__.__name__ == "RefType":
@@ -433,12 +553,12 @@ def _detect_circular_references(schema):
 
 
 def _validate_model(model, _metamodel):
-    schemas = [model] if hasattr(model, "entities") else getattr(model, "schemas", [])
+    schemas = [model] if hasattr(model, "elements") else getattr(model, "schemas", [])
 
     for schema in schemas:
         _validate_required_schema(schema)
 
-        for entity in schema.entities:
+        for entity in _schema_entities(schema):
             _validate_required_entity(entity)
 
             field_names = set()
@@ -452,6 +572,22 @@ def _validate_model(model, _metamodel):
                 _validate_field(field)
 
             _validate_entity_config(entity)
+        
+        
+        relationship_names = set()
+
+        for relationship in _schema_relationships(schema):
+            if relationship.name in relationship_names:
+                raise ValidationError(
+                    f"Schema '{schema.name}': duplicate relationship '{relationship.name}'.",
+                    relationship,
+                )
+
+            relationship_names.add(relationship.name)
+
+            _validate_relationship(relationship)
+
+        relationship_names = set()
 
         _detect_circular_references(schema)
 

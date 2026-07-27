@@ -45,6 +45,7 @@ from testdatagen.generators.sql_generator import (
     _is_array_ref,
     _is_simple_ref,
     _requires_unique_generation,
+    _schema_entities,
 )
 from testdatagen.generators.faker_integration import FakerTypeMapper
 
@@ -526,7 +527,7 @@ class ReportGenerator:
 
     def _build_context(self) -> Dict:
         schema          = self.model
-        entities        = _topological_sort(list(schema.entities))
+        entities        = _topological_sort(list(_schema_entities(schema)))
         global_strategy = getattr(schema, "strategy", "random") or "random"
         global_combo    = getattr(schema, "combination_strategy", "pairwise") or "pairwise"
 

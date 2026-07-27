@@ -55,6 +55,7 @@ from testdatagen.generators.sql_generator import (
     _is_array_ref,
     _is_simple_ref,
     _requires_unique_generation,
+    _schema_entities
 )
 
 
@@ -134,7 +135,7 @@ class CSVGenerator:
         Useful for programmatic access before writing CSV files.
         """
         schema          = self.model
-        entities        = _topological_sort(list(schema.entities))
+        entities        = _topological_sort(list(_schema_entities(schema)))
         global_strategy = getattr(schema, "strategy", "random") or "random"
         global_combo    = getattr(schema, "combination_strategy", "pairwise") or "pairwise"
 
