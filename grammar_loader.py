@@ -15,6 +15,7 @@ from validation import (
     InvalidIncludeFieldError,
     InvalidIncludeValueError,
     InvalidPartitionsError,
+    InvalidDegreeError
 )
 
 CURRENT_DIR = Path(__file__).parent
@@ -359,6 +360,9 @@ def _validate_relationship_config(relationship):
 
     seen_option_types = set()
 
+    min_degree = None
+    max_degree = None
+
     for option in getattr(config, "options", []):
         option_type = option.__class__.__name__
 
@@ -376,6 +380,24 @@ def _validate_relationship_config(relationship):
                     f"Relationship '{relationship.name}': generate must be a positive integer.",
                     option,
                 )
+        
+        elif option_type == "MinDegreeOption":
+            if option.value < 0:
+                raise InvalidDegreeError(
+                    f"Relationship '{relationship.name}': minDegree must be >= 0.",
+                    option,
+                )
+
+            min_degree = option.value
+
+        elif option_type == "MaxDegreeOption":
+            if option.value < 0:
+                raise InvalidDegreeError(
+                    f"Relationship '{relationship.name}': maxDegree must be >= 0.",
+                    option,
+                )
+
+            max_degree = option.value
 
         elif option_type == "IncludeOption":
             for test_case in option.include:
@@ -406,6 +428,35 @@ def _validate_relationship_config(relationship):
                         property_by_name[assignment.name],
                         assignment,
                     )
+
+        elif option_type == "RelationshipStrategyOption":
+            strategy = option.strategy
+
+        if (
+            min_degree is not None
+            and max_degree is not None
+            and min_degree > max_degree
+        ):
+            raise InvalidDegreeError(
+                (
+                    f"Relationship '{relationship.name}': "
+                    f"minDegree ({min_degree}) cannot be greater than "
+                    f"maxDegree ({max_degree})."
+                ),
+                relationship.config,
+            )
+
+        if (
+            strategy == "one-to-one"
+            and (min_degree is not None or max_degree is not None)
+        ):
+            raise InvalidDegreeError(
+                (
+                    f"Relationship '{relationship.name}': "
+                    "minDegree/maxDegree cannot be used with one-to-one strategy."
+                ),
+                relationship.config,
+            )
 
 
 def _is_null_value(value):

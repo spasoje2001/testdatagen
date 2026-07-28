@@ -11,6 +11,11 @@
   "categories": [
     "Programming Languages"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/spasoje2001/testdatagen.git"
+  },
+  "license": "MIT",
   "contributes": {
     "languages": [
       {

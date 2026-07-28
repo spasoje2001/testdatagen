@@ -28,7 +28,7 @@
       "patterns": [
         {
           "name": "keyword.control.testdatagen",
-          "match": "\\b(schema|entity|fields|config|ref|enum|range)\\b"
+          "match": "\\b(schema|entity|relationship|fields|properties|config|from|to|ref|enum|range)\\b"
         },
         {
           "name": "keyword.other.option.testdatagen",
@@ -48,7 +48,7 @@
       "patterns": [
         {
           "name": "entity.name.tag.strategy.testdatagen",
-          "match": "\\b(random|boundary|partition|smart|full|pairwise|each-used)\\b"
+          "match": "\\b(random|boundary|partition|smart|full|pairwise|each-used|one-to-one|one-to-many|many-to-one|many-to-many)\\b"
         }
       ]
     },

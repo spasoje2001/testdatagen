@@ -45,3 +45,7 @@ class InvalidPartitionsError(ValidationError):
 
 class InvalidReferenceError(ValidationError):
     pass
+
+
+class InvalidDegreeError(ValidationError):
+    pass

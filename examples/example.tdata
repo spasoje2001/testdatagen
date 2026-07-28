@@ -26,7 +26,7 @@ schema Ecommerce {
 
         config {
             strategy: one-to-one
-            generate: 100
+            generate: 10
 
             include: [
                 {

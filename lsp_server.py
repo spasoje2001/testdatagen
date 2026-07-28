@@ -47,8 +47,12 @@ ENTITY_REGEX = r"entity\s+([a-zA-Z0-9_]+)"
 KEYWORDS_DICTIONARY = {
     "schema": "Defines a new TestDataGen schema container.",
     "entity": "Defines a data entity (table/object structure) to generate records for.",
+    "relationship": "Defines a directed relationship between two entities.",
     "fields": "Block containing the individual property attributes of an entity.",
-    "config": "Configuration block for setting up strategies and generation volume.",
+    "properties": "Block containing properties stored on a relationship.",
+    "config": "Configuration block for generation settings.",
+    "from": "Source entity of the relationship.",
+    "to": "Target entity of the relationship.",
     "ref": "Creates a relational reference to another defined Entity.",
     "enum": "Defines a custom enumeration type with a strict set of allowed text values.",
     "description": "Optional schema description.",
@@ -98,6 +102,13 @@ STRATEGIES_DICTIONARY = {
     "smart": "Intelligent generation strategy that automatically combines partitions and boundary values.",
 }
 
+RELATIONSHIP_STRATEGY_DICTIONARY = {
+    "one-to-one": "Each source entity is connected to exactly one target entity.",
+    "one-to-many": "Each source entity may be connected to multiple target entities.",
+    "many-to-one": "Multiple source entities may be connected to the same target entity.",
+    "many-to-many": "Source and target entities may have multiple connections.",
+}
+
 COMBINATION_STRATEGIES_DICTIONARY = {
     "full": "Generates all possible combinations.",
     "pairwise": "Ensures every pair of values appears together.",
@@ -115,6 +126,7 @@ HOVER_DICTIONARY = {
     **TYPES_DICTIONARY,
     **CONSTRAINTS_DICTIONARY,
     **STRATEGIES_DICTIONARY,
+    **RELATIONSHIP_STRATEGY_DICTIONARY,
     **COMBINATION_STRATEGIES_DICTIONARY,
     **SPECIAL_VALUES_DICTIONARY,
 }
@@ -514,34 +526,34 @@ def find_references(
         )
     )
 
-    # ref usages
-    ref_regex = rf"ref\s+({re.escape(selected_word)})\b"
+    
+    patterns = [
+        rf"ref\s+({re.escape(selected_word)})\b",
+        rf"from\s+({re.escape(selected_word)})\b",
+        rf"to\s+({re.escape(selected_word)})\b",
+    ]
 
-    for line_index, line in enumerate(document.lines):
+    for pattern in patterns:
+        for line_index, line in enumerate(document.lines):
+            for match in re.finditer(pattern, line):
+                start = match.start(1)
+                end = match.end(1)
 
-        for match in re.finditer(
-            ref_regex,
-            line
-        ):
-
-            start = match.start(1)
-            end = match.end(1)
-
-            locations.append(
-                Location(
-                    uri=params.text_document.uri,
-                    range=Range(
-                        start=Position(
-                            line=line_index,
-                            character=start,
-                        ),
-                        end=Position(
-                            line=line_index,
-                            character=end,
-                        ),
+                locations.append(
+                    Location(
+                        uri=params.text_document.uri,
+                        range=Range(
+                            start=Position(
+                                line=line_index,
+                                character=start,
+                            ),
+                            end=Position(
+                                line=line_index,
+                                character=end,
+                            ),
+                        )
                     )
                 )
-            )
 
     return locations
 

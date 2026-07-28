@@ -153,6 +153,8 @@ RelationshipConfig:
 RelationshipConfigOption:
     GenerateOption |
     RelationshipStrategyOption |
+    MinDegreeOption |
+    MaxDegreeOption |
     IncludeOption
 ;
 
@@ -173,6 +175,14 @@ RelationshipStrategy:
     | 'one-to-many'
     | 'many-to-one'
     | 'many-to-many'
+;
+
+MinDegreeOption:
+    'minDegree:' value=INT
+;
+
+MaxDegreeOption:
+    'maxDegree:' value=INT
 ;
 
 IncludeOption:

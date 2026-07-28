@@ -53,6 +53,13 @@ from testdatagen.generators.sql_generator import (
     _schema_entities,
 )
 
+from testdatagen.strategies.relationships import (
+    _one_to_one,
+    _one_to_many,
+    _many_to_one,
+    _many_to_many
+)
+
 
 def _schema_relationships(schema):
     return [
@@ -125,6 +132,7 @@ class Neo4JGenerator:
 
         self._mapper = FakerTypeMapper(seed=self.seed)
         self._generated_ids: Dict[str, List[Any]] = {}
+        self._generated_rows: Dict[str, List[Dict[str, Any]]] = {}
 
     # ------------------------------------------------------------------
     # Public
@@ -135,36 +143,59 @@ class Neo4JGenerator:
         data = self.build()
         return self._render_cypher(data)
 
-    def build(self) -> dict:
-        """
-        Build an intermediate representation of Neo4J nodes and
-        relationships before rendering to Cypher.
-        """
-        schema = self.model
-        entities = _topological_sort(list(_schema_entities(schema)))
-        global_strategy = getattr(schema, "strategy", "random") or "random"
-        global_combo = getattr(schema, "combination_strategy", "pairwise") or "pairwise"
 
-        nodes = []
-        relationships = []
+    def build(self):
+        schema = self.model
+
+        entities = _topological_sort(
+            list(_schema_entities(schema))
+        )
+
+        nodes_list = list(self._node_stream(entities))
+
+        relationships_list = list(self._relationship_stream(schema))
+
+        return {
+            "metadata": {
+                "schema": getattr(schema, "name", "Unknown"),
+                "seed": self.seed,
+                "generated_at": self.timestamp,
+            },
+            "nodes": nodes_list,
+            "relationships": relationships_list,
+        }
+
+
+    def _node_stream(self, entities):
+        global_strategy = getattr(self.model, "strategy", "random") or "random"
+        global_combo = getattr(
+            self.model,
+            "combination_strategy",
+            "pairwise",
+        ) or "pairwise"
 
         for entity in entities:
+
             config = getattr(entity, "config", None)
             generate = _generate_count(config)
             combo_strat = _combination_strategy(config, global_combo)
             includes = _include_cases(config)
 
-            normal_fields = [f for f in entity.fields if not _is_array_ref(f)]
-            array_fields = [f for f in entity.fields if _is_array_ref(f)]
+            normal_fields = [
+                f for f in entity.fields
+                if not _is_simple_ref(f) and not _is_array_ref(f)
+            ]
 
             combo_fields = [
                 f for f in normal_fields
                 if not _requires_unique_generation(f)
             ]
+
             unique_fields = [
                 f for f in normal_fields
                 if _requires_unique_generation(f)
             ]
+
             field_values = {
                 field.name: _collect_strategy_values(
                     field,
@@ -174,17 +205,21 @@ class Neo4JGenerator:
                 )
                 for field in combo_fields
             }
+
             rows = _combine_and_pad(
                 field_values,
                 combo_strat,
                 self.seed,
                 generate,
             )
+
             include_rows = [
                 _include_to_row(tc, entity.fields)
                 for tc in includes
             ]
+
             rows = (include_rows + rows)[:generate]
+
             for row in rows:
                 for field in unique_fields:
                     if row.get(field.name) is None:
@@ -193,27 +228,81 @@ class Neo4JGenerator:
                             field.constraints,
                         )
 
-            rows = self._resolve_refs(rows, normal_fields)
             self._store_ids(entity, rows)
-            if array_fields:
-                rows = self._attach_array_refs(
-                    entity,
-                    array_fields,
-                    rows,
-                )
-            nodes.extend(
-                self._build_nodes(entity, rows)
-            )
+            self._generated_rows[entity.name] = rows
 
-        return {
-            "metadata": {
-                "schema": getattr(schema, "name", "Unknown"),
-                "seed": self.seed,
-                "generated_at": self.timestamp,
-            },
-            "nodes": nodes,
-            "relationships": relationships,
+            yield from self._build_nodes(entity, rows)
+
+
+    def _generate_relationship_rows(self, relationship):
+        """Generiše redove podataka za properties relacije koristeći isti pipeline kao i entiteti."""
+        properties_def = getattr(relationship, "properties", None)
+        if not properties_def:
+            return []
+
+        config = getattr(relationship, "config", None)
+        global_strategy = getattr(self.model, "strategy", "random") or "random"
+        global_combo = getattr(self.model, "combination_strategy", "pairwise") or "pairwise"
+
+        generate = _generate_count(config)
+
+        combo_strat = _combination_strategy(config, global_combo)
+        includes = _include_cases(config)
+
+        normal_fields = [
+            f for f in properties_def
+            if not _is_simple_ref(f) and not _is_array_ref(f)
+        ]
+
+        combo_fields = [
+            f for f in normal_fields
+            if not _requires_unique_generation(f)
+        ]
+
+        unique_fields = [
+            f for f in normal_fields
+            if _requires_unique_generation(f)
+        ]
+
+        field_values = {
+            field.name: _collect_strategy_values(
+                field,
+                global_strategy,
+                self._mapper,
+                generate,
+            )
+            for field in combo_fields
         }
+
+        rows = _combine_and_pad(
+            field_values,
+            combo_strat,
+            self.seed,
+            generate,
+        )
+
+        include_rows = [
+            _include_to_row(tc, properties_def)
+            for tc in includes
+        ]
+
+        rows = (include_rows + rows)[:generate]
+
+        for row in rows:
+            for field in unique_fields:
+                if row.get(field.name) is None:
+                    row[field.name] = self._mapper.generate_for_type_name(
+                        _field_type_name(field.type),
+                        field.constraints,
+                    )
+
+        return rows
+
+        
+    def _relationship_stream(self, schema):
+        for relationship in _schema_relationships(schema):
+            yield from self._build_relationships(relationship)
+
 
     # ------------------------------------------------------------------
     # Internal helpers (mirror sql_generator internals)
@@ -243,120 +332,91 @@ class Neo4JGenerator:
                 if row.get(id_field) is not None
             ]
 
-    def _resolve_refs(
-        self,
-        rows: List[Dict[str, Any]],
-        fields,
-    ) -> List[Dict[str, Any]]:
-        """Replace __ref__ placeholders with generated IDs."""
-        rng = _random_module.Random(self.seed)
-        ref_fields = {
-            field.name: field
-            for field in fields
-            if _is_simple_ref(field)
-        }
-        if not ref_fields:
-            return rows
-
-        resolved = []
-        for row in rows:
-            new_row = dict(row)
-            for field_name, field in ref_fields.items():
-                if new_row.get(field_name) == "__ref__":
-                    ref_entity = field.type.entity.name
-                    ids = self._generated_ids.get(ref_entity, [])
-                    new_row[field_name] = rng.choice(ids) if ids else None
-            resolved.append(new_row)
-        return resolved
-
-    def _attach_array_refs(
-        self,
-        entity,
-        array_fields,
-        rows: List[Dict[str, Any]],
-    ) -> List[Dict[str, Any]]:
-        """
-        Replace array reference placeholders with lists of generated IDs.
-        """
-        rng = _random_module.Random(self.seed)
-        for field in array_fields:
-            ref_entity = field.type.entity.name
-            available_ids = self._generated_ids.get(ref_entity, [])
-            if not available_ids:
-                for row in rows:
-                    row[field.name] = []
-                continue
-
-            field_type = field.type
-
-            has_count = bool(getattr(field_type, "has_count", False))
-            min_count = getattr(field_type, "min", 1) if has_count else 1
-            max_count = getattr(field_type, "max", 3) if has_count else 3
-
-            for row in rows:
-                count = rng.randint(min_count, max_count)
-                row[field.name] = rng.choices(
-                    available_ids,
-                    k=count,
-                )
-        return rows
 
     def _build_nodes(self, entity, rows):
-        nodes = []
         for row in rows:
+
             properties = {}
+
             for field in entity.fields:
                 if _is_simple_ref(field) or _is_array_ref(field):
                     continue
+
                 properties[field.name] = row.get(field.name)
-            nodes.append({
+
+            yield {
                 "label": entity.name,
                 "properties": properties,
-            })
-        return nodes
+            }
 
-    def _build_relationships(
-        self,
-        entity,
-        normal_fields,
-        array_fields,
-        rows,
-    ):
-        """Build Neo4J relationship definitions."""
-        relationships = []
-        for row in rows:
-            source_id = row.get("id")
+    def _build_relationships(self, relationship):
+        options = self._relationship_options(
+            getattr(relationship, "config", None)
+        )
 
-            if source_id is None:
-                continue
+        strategy = options["strategy"]
+        
+        from_obj = getattr(relationship, "from_", getattr(relationship, "from", None))
+        from_name = from_obj.name if from_obj else None
 
-            for field in normal_fields:
-                if not _is_simple_ref(field):
-                    continue
-                target = row.get(field.name)
+        from_rows = self._generated_rows.get(from_name, [])
+        to_rows = self._generated_rows.get(relationship.to.name, [])
 
-                if target is None:
-                    continue
-                relationships.append({
-                    "from_label": entity.name,
-                    "from_id": source_id,
-                    "to_label": field.type.entity.name,
-                    "to_id": target,
-                    "type": field.name.upper(),
-                })
+        if not from_rows or not to_rows:
+            return iter(())
 
-            for field in array_fields:
-                targets = row.get(field.name, [])
-                for target in targets:
-                    relationships.append({
-                        "from_label": entity.name,
-                        "from_id": source_id,
-                        "to_label": field.type.entity.name,
-                        "to_id": target,
-                        "type": field.name.upper(),
-                    })
+        # Generišemo redove za properties relacije
+        prop_rows = self._generate_relationship_rows(relationship)
 
-        return relationships
+        kwargs = dict(
+            relationship=relationship,
+            from_rows=from_rows,
+            to_rows=to_rows,
+            prop_rows=prop_rows,  # <--- Prosleđujemo redove svojstava
+            generate=options["generate"],
+            min_degree=options["min_degree"],
+            max_degree=options["max_degree"],
+            seed=self.seed,
+        )
+
+        if strategy == "one-to-one":
+            return _one_to_one(**kwargs)
+
+        if strategy == "one-to-many":
+            return _one_to_many(**kwargs)
+
+        if strategy == "many-to-one":
+            return _many_to_one(**kwargs)
+
+        if strategy == "many-to-many":
+            return _many_to_many(**kwargs)
+
+        return _one_to_one(**kwargs)
+
+
+    def _relationship_options(self, config):
+        strategy = "one-to-one"
+        min_degree = 1
+        max_degree = None
+        generate = _generate_count(config)
+
+        if config:
+            for option in config.options:
+                if option.__class__.__name__ == "RelationshipStrategyOption":
+                    strategy = option.strategy
+
+                elif option.__class__.__name__ == "MinDegreeOption":
+                    min_degree = option.value
+
+                elif option.__class__.__name__ == "MaxDegreeOption":
+                    max_degree = option.value
+
+        return {
+            "strategy": strategy,
+            "min_degree": min_degree,
+            "max_degree": max_degree,
+            "generate": generate,
+        }
     
     def _render_cypher(self, data: Dict[str, Any]) -> str:
         """
@@ -398,6 +458,12 @@ class Neo4JGenerator:
         ])
 
         for relationship in data["relationships"]:
+            props = [
+                f"{key}: {format_value_neo4j(value)}"
+                for key, value in relationship['properties'].items()
+            ]
+            props_str = f" {{{', '.join(props)}}}" if props else ""
+
             lines.extend([
                 (
                     f"MATCH (from:{relationship['from_label']} "
@@ -405,7 +471,7 @@ class Neo4JGenerator:
                     f"(to:{relationship['to_label']} "
                     f"{{id: {format_value_neo4j(relationship['to_id'])}}})"
                 ),
-                f"CREATE (from)-[:{relationship['type']}]->(to);",
+                f"CREATE (from)-[:{relationship['type']}{props_str}]->(to);",
                 "",
             ])
 
