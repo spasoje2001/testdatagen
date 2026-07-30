@@ -5,12 +5,18 @@ schema Ecommerce {
             id: uuid
             name: fullName
         }
+        config {
+            generate: 100
+        }
     }
 
     entity Order {
         fields {
             id: uuid
             total: number
+        }
+        config {
+            generate: 100
         }
     }
 
@@ -25,8 +31,8 @@ schema Ecommerce {
         }
 
         config {
-            strategy: one-to-one
-            generate: 10
+            strategy: many-to-many
+            generate: 1000
 
             include: [
                 {

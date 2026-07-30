@@ -37,7 +37,7 @@ server = LanguageServer(
 # REGEX
 # ==========================================================
 
-WORD_REGEX = r"[a-zA-Z0-9_]+"
+WORD_REGEX = r"[a-zA-Z0-9_]+(?:-[a-zA-Z0-9_]+)*"
 ENTITY_REGEX = r"entity\s+([a-zA-Z0-9_]+)"
 
 # ==========================================================
@@ -341,6 +341,14 @@ def completions(
             types.CompletionItemKind.Value
         )
     )
+
+    items.extend(
+        create_completion_items(
+            RELATIONSHIP_STRATEGY_DICTIONARY,
+            types.CompletionItemKind.Value
+        )
+    )
+
 
     try:
 

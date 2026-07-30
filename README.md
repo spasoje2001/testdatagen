@@ -20,10 +20,10 @@ TestDataGen enables defining data schemas with constraints and relationships, th
 - **Smart Generation Strategies** - Choose between `random`, `boundary`, `partition`, or `smart` (combined) strategies at schema or field level
 - **Combination Strategies** - Control how field values are combined using `full`, `pairwise`, or `each-used` algorithms to prevent combinatorial explosion
 - **Built-in Data Types** - Support for common types: `uuid`, `email`, `fullName`, `date`, `number`, `boolean`, `enum`, and more
-- **Entity Relationships** - Define references between entities with automatic foreign key generation
+- **Entity Relationships** - Define explicit relationships with custom properties, configurations, and graph generation strategies (Neo4j)
 - **Edge Case Support** - Explicitly include `null`, `empty`, or `invalid` values for robustness testing
 - **Custom Test Cases** - Define explicit test cases alongside auto-generated data for regression testing
-- **Multiple Output Formats** - Generate SQL (PostgreSQL), JSON, CSV, YAML, CYPHER (Neo4J) and HTML Coverage Reports
+- **Multiple Output Formats** - Generate SQL (PostgreSQL), JSON, CSV, YAML, Neo4j Cypher scripts, and HTML coverage reports.
 - **Reproducible Results** - Seed-based generation for consistent, reproducible test datasets
 
 ## Example
@@ -195,6 +195,13 @@ The HTML coverage report shows which test cases were generated and calculates co
 | Order | items | BVA | 6 (count: 0, 1, 2, 9, 10, 11) | 6 | 100% |
 
 **Note:** If `generate: N` is smaller than the number of required test cases, coverage will be less than 100% and the report will indicate how many additional records are needed for full coverage.
+
+Relationship properties are also included in the coverage report.
+
+| Relationship | Property | Strategy | Required Cases | Generated | Coverage |
+|--------------|----------|----------|----------------|-----------|----------|
+| Purchased | rating | BVA | 6 | 6 | 100% |
+| Purchased | createdAt | EP | 3 | 3 | 100% |
 
 ## Grammar
 
@@ -443,6 +450,200 @@ entity User {
 ```
 This separation ensures clear distinction between entity schema (what the data looks like) and generation settings (how to generate it).
 
+---
+
+## Relationship Strategies (Neo4j)
+
+TestDataGen allows you to define explicit `relationship` blocks between entities, complete with custom properties and configuration settings. 
+
+> **Important Note on Formats:** 
+> **All generators except Neo4j (SQL, JSON, CSV, YAML, Report) ignore `relationship` blocks** and focus solely on generating data within the entities themselves. 
+> The only output format that fully processes and generates graph relationships with properties is **Neo4j (Cypher)**.
+
+Relationships can be configured using specialized graph-based generation strategies inside the relationship's `config` block (`strategy: <strategy_name>`):
+
+| Strategy | Description | Use Case |
+|----------|-------------|----------|
+| `one-to-one` | Each source entity (`from`) connects to exactly one target entity (`to`) | Exclusive links (e.g., `User` and `Profile`) |
+| `one-to-many` | A single source entity (`from`) connects to multiple target entities (`to`) | Hierarchical links (e.g., `User` placing multiple `Order`s) |
+| `many-to-one` | Multiple source entities (`from`) point to a single target entity (`to`) | Inverse of one-to-many depending on modeling perspective |
+| `many-to-many` | Multiple source entities connect to multiple target entities, generating combinations and edge properties automatically | M:N mappings with attributes (e.g., `Student` enrolled in `Course`s) |
+
+### Relationship Configuration
+
+Each relationship may define an optional `config` block that controls how graph edges are generated.
+
+| Option | Description | Default |
+|----------|-------------|---------|
+| `strategy` | Graph generation strategy (`one-to-one`, `one-to-many`, `many-to-one`, `many-to-many`) | `many-to-many` |
+| `generate` | Maximum number of relationships (edges) to generate | Unlimited |
+| `minDegree` | Minimum number of outgoing relationships for each source node | `0` |
+| `maxDegree` | Maximum number of outgoing relationships for each source node | Unlimited |
+| `include` | Explicit relationship property test cases | None |
+
+`generate` acts as an **upper bound** on the number of generated relationships. The actual number may be lower depending on the selected strategy, the available source/target nodes, and the configured degree constraints.
+
+`minDegree` and `maxDegree` control the minimum and maximum number of outgoing relationships created for each source node.
+
+### Relationship Example in Schema
+
+```text
+relationship Placed {
+
+    from User
+    to Order
+
+    properties {
+        createdAt: datetime
+        rating: number
+    }
+
+    config {
+        strategy: many-to-many
+        generate: 1000
+
+        include: [
+            {
+                createdAt: "2020-01-01",
+                rating: 2
+            },
+            {
+                createdAt: "2020-05-05",
+                rating: 3
+            }
+        ]
+    }
+}
+```
+
+### Degree Constraints Example
+
+```text
+relationship Purchased {
+
+    from User
+    to Product
+
+    config {
+        strategy: many-to-many
+        generate: 500
+        minDegree: 1
+        maxDegree: 5
+    }
+}
+```
+
+In this example every `User` will be connected to between **1 and 5** `Product` nodes, while the total number of generated relationships will never exceed **500**.
+
+### Generated Cypher Example
+
+```cypher
+CREATE (:User {
+    id: "u1",
+    name: "John Doe"
+});
+
+CREATE (:Product {
+    id: "p1",
+    name: "Laptop"
+});
+
+MATCH
+(u:User {id:"u1"}),
+(p:Product {id:"p1"})
+CREATE (u)-[:PURCHASED {
+    createdAt:"2024-01-01",
+    rating:5
+}]->(p);
+```
+
+### Relationship Properties
+
+Relationship properties behave the same way as entity fields. They support the same built-in data types, constraints, generation strategies, explicit include cases, and coverage calculation.
+
+## VS Code Extension
+
+TestDataGen includes a Visual Studio Code extension providing language support for `.tdata` files.
+
+Current features include:
+
+- Syntax highlighting
+- Hover documentation
+- Semantic validation
+- Error diagnostics
+- Warning diagnostics
+- Auto-completion
+- Go to Definition
+
+## VS Code Extension Development
+
+This section describes how to build, run, and debug the Visual Studio Code extension included in this repository.
+
+### Install extension dependencies
+
+```bash
+npm install
+```
+
+### Run the extension in development mode
+
+Open the project in Visual Studio Code and press:
+
+```
+F5
+```
+
+This launches a new **Extension Development Host** window with the TestDataGen extension loaded.
+
+### Package the extension
+
+Install the VS Code packaging tool:
+
+```bash
+npm install -g @vscode/vsce
+```
+
+Then create the extension package:
+
+```bash
+vsce package
+```
+
+This generates a `.vsix` file that can be installed manually in Visual Studio Code.
+
+### Install the generated extension
+
+```bash
+code --install-extension *.vsix
+```
+
+or, after packaging:
+
+```bash
+code --install-extension *.vsix
+```
+
+### Uninstall the extension
+
+```bash
+code --uninstall-extension testdatagen-support
+```
+
+### Run the Language Server manually
+
+For debugging purposes:
+
+```bash
+python lsp_server.py
+```
+
+### Reinstall after changes
+
+```bash
+vsce package
+code --install-extension *.vsix --force
+```
+
 ## Instructions
 
 ### Prerequisites
@@ -457,24 +658,33 @@ This separation ensures clear distinction between entity schema (what the data l
 git clone https://github.com/spasoje2001/testdatagen.git
 cd testdatagen
 ```
-# 2. Create virtual environment
+2. Create virtual environment
+```bash
 python -m venv .venv
+```
 
-# 3. Activate virtual environment
+3. Activate virtual environment
+```bash
 .venv\Scripts\activate
+```
 
-# 4. Install dependencies and TestDataGen CLI
+4. Install dependencies and TestDataGen CLI
+```bash
 pip install -e .
+```
 
 ### Usage
 
 # 1. Start testing
+Run the test suite:
+
+```bash
 pytest
-
+```
 or
-
-pytest -v (for details)
-
+```bash
+pytest -v
+```
 
 Generate test data from a schema file:
 
@@ -502,7 +712,7 @@ TestDataGen can generate test data in multiple output formats:
 | CSV | One CSV file per entity for spreadsheet and import/export workflows |
 | YAML | Human-readable YAML representation of generated entities |
 | Neo4j | Cypher script containing node and relationship creation statements for Neo4j graph databases |
-| Report | Human-readable generation report with statistics |
+| Report | HTML coverage report for entity fields and relationship properties |
 
 #### Examples
 
@@ -523,7 +733,43 @@ testdatagen validate schema.tdata
 
 ## Project Structure
 
-_To be added_
+The overall architecture of TestDataGen is shown below.
+
+<p align="center">
+  <img src="docs/images/architecture.png" alt="TestDataGen architecture" width="450">
+</p>
+
+The `.tdata` schema is parsed using the **textX** grammar, producing a common
+Abstract Syntax Tree (AST). All output generators reuse this shared
+representation.
+
+- **SQL**, **JSON**, **CSV**, **YAML**, and the **HTML Coverage Report**
+  generate data only from **entity** definitions.
+- The **Neo4J Generator** additionally processes **relationship**
+  definitions and generates Cypher nodes and relationships.
+
+This architecture allows all generators to share the same parsing and data
+generation pipeline while supporting generator-specific output formats.
+
+```
+testdatagen/
+│
+├── examples/                 # Example DSL schemas
+├── syntaxes/                 # VS Code syntax highlighting
+├── tests/                    # Unit and integration tests
+├── testdatagen/
+│   ├── generators/           # SQL, JSON, CSV, YAML, Neo4j and Report generators
+│   ├── grammar/              # DSL grammar definition
+│   ├── strategies/           # Boundary, partition, edge-case generation and relationships
+│   └── faker_integration.py
+│
+├── grammar_loader.py         # Grammar loading and validation
+├── validation.py             # Semantic validation rules
+├── lsp_server.py             # Language Server implementation
+├── extension.js              # VS Code extension entry point
+├── README.md
+└── pyproject.toml
+```
 
 ## Technologies Used
 

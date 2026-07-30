@@ -67,6 +67,35 @@ def _schema_relationships(schema):
         if r.__class__.__name__ == "Relationship"
     ]
 
+def _relationship_options(config):
+    strategy = "one-to-one"
+    min_degree = 1
+    max_degree = None
+    generate = _generate_count(config)
+    include = []
+
+    if config:
+        for option in config.options:
+            if option.__class__.__name__ == "RelationshipStrategyOption":
+                strategy = option.strategy
+
+            elif option.__class__.__name__ == "MinDegreeOption":
+                min_degree = option.value
+
+            elif option.__class__.__name__ == "MaxDegreeOption":
+                max_degree = option.value
+            
+            elif option.__class__.__name__ == "IncludeOption":
+                include = option.include
+
+    return {
+        "strategy": strategy,
+        "min_degree": min_degree,
+        "max_degree": max_degree,
+        "generate": generate,
+        "include": include,
+    }
+
 
 # ---------------------------------------------------------------------------
 # Neo4J value formatting
@@ -219,11 +248,11 @@ class Neo4JGenerator:
             ]
 
             rows = (include_rows + rows)[:generate]
-
+            generator_func = self._mapper.generate_for_type_name
             for row in rows:
                 for field in unique_fields:
                     if row.get(field.name) is None:
-                        row[field.name] = self._mapper.generate_for_type_name(
+                        row[field.name] = generator_func(
                             _field_type_name(field.type),
                             field.constraints,
                         )
@@ -350,7 +379,7 @@ class Neo4JGenerator:
             }
 
     def _build_relationships(self, relationship):
-        options = self._relationship_options(
+        options = _relationship_options(
             getattr(relationship, "config", None)
         )
 
@@ -365,14 +394,13 @@ class Neo4JGenerator:
         if not from_rows or not to_rows:
             return iter(())
 
-        # Generišemo redove za properties relacije
         prop_rows = self._generate_relationship_rows(relationship)
 
         kwargs = dict(
             relationship=relationship,
             from_rows=from_rows,
             to_rows=to_rows,
-            prop_rows=prop_rows,  # <--- Prosleđujemo redove svojstava
+            prop_rows=prop_rows,
             generate=options["generate"],
             min_degree=options["min_degree"],
             max_degree=options["max_degree"],
@@ -393,30 +421,6 @@ class Neo4JGenerator:
 
         return _one_to_one(**kwargs)
 
-
-    def _relationship_options(self, config):
-        strategy = "one-to-one"
-        min_degree = 1
-        max_degree = None
-        generate = _generate_count(config)
-
-        if config:
-            for option in config.options:
-                if option.__class__.__name__ == "RelationshipStrategyOption":
-                    strategy = option.strategy
-
-                elif option.__class__.__name__ == "MinDegreeOption":
-                    min_degree = option.value
-
-                elif option.__class__.__name__ == "MaxDegreeOption":
-                    max_degree = option.value
-
-        return {
-            "strategy": strategy,
-            "min_degree": min_degree,
-            "max_degree": max_degree,
-            "generate": generate,
-        }
     
     def _render_cypher(self, data: Dict[str, Any]) -> str:
         """
@@ -430,7 +434,7 @@ class Neo4JGenerator:
             f"// Generated at: {data['metadata']['generated_at']}",
             "// =========================================================",
             "",
-            "// --- Node Definitions ---",
+            f"// --- Node Definitions (records {len(data['nodes'])}) ---",
         ]
 
         # ----------------------------------------------------------
@@ -454,7 +458,7 @@ class Neo4JGenerator:
         # ----------------------------------------------------------
         lines.extend([
             "",
-            "// --- Relationship Definitions ---",
+            f"// --- Relationship Definitions (records {len(data['relationships'])}) ---",
         ])
 
         for relationship in data["relationships"]:

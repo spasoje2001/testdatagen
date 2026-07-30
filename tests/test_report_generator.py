@@ -526,3 +526,142 @@ class TestReproducibility:
         html1 = ReportGenerator(model, seed=42, timestamp="T").render()
         html2 = ReportGenerator(model, seed=42, timestamp="T").render()
         assert html1 == html2
+
+# ===========================================================================
+# 7. Relationships
+# ===========================================================================
+
+RELATIONSHIP_SCHEMA = """
+schema Ecommerce {
+    seed: 42
+
+    entity User {
+        fields {
+            id: uuid
+            name: fullName
+        }
+        config { generate: 5 }
+    }
+
+    entity Order {
+        fields {
+            id: uuid
+            total: number
+        }
+        config { generate: 5 }
+    }
+
+    relationship Placed {
+
+        from User
+        to Order
+
+        properties {
+            createdAt: datetime
+            rating: number
+        }
+
+        config {
+            strategy: one-to-one
+            generate: 100
+
+            include: [
+                {
+                    createdAt: "2020-01-01",
+                    rating: 2
+                }
+            ]
+        }
+    }
+}
+"""
+
+class TestRelationships:
+
+    def _coverage(self, schema_str):
+        model = load_model_from_str(schema_str)
+        return ReportGenerator(model, seed=42).calculate_coverage()
+
+    def _render(self, schema_str):
+        model = load_model_from_str(schema_str)
+        return ReportGenerator(model, seed=42).render()
+
+    # ------------------------------------------------------------------
+    # Raw context
+    # ------------------------------------------------------------------
+
+    def test_relationships_key_exists(self):
+        data = self._coverage(RELATIONSHIP_SCHEMA)
+        assert "relationships" in data
+
+    def test_one_relationship_found(self):
+        data = self._coverage(RELATIONSHIP_SCHEMA)
+        assert len(data["relationships"]) == 1
+
+    def test_relationship_name(self):
+        rel = self._coverage(RELATIONSHIP_SCHEMA)["relationships"][0]
+        assert rel["name"] == "Placed"
+
+    def test_relationship_from_to(self):
+        rel = self._coverage(RELATIONSHIP_SCHEMA)["relationships"][0]
+        assert rel["from"] == "User"
+        assert rel["to"] == "Order"
+
+    def test_relationship_strategy(self):
+        rel = self._coverage(RELATIONSHIP_SCHEMA)["relationships"][0]
+        assert rel["strategy"] == "one-to-one"
+
+    def test_relationship_generate(self):
+        rel = self._coverage(RELATIONSHIP_SCHEMA)["relationships"][0]
+        assert rel["generate"] == 100
+
+    def test_relationship_include_cases(self):
+        rel = self._coverage(RELATIONSHIP_SCHEMA)["relationships"][0]
+        assert rel["include_cases"] == 1
+
+    def test_relationship_properties(self):
+        rel = self._coverage(RELATIONSHIP_SCHEMA)["relationships"][0]
+
+        assert len(rel["properties"]) == 2
+
+        assert rel["properties"][0]["name"] == "createdAt"
+        assert rel["properties"][0]["type"] == "datetime"
+
+        assert rel["properties"][1]["name"] == "rating"
+        assert rel["properties"][1]["type"] == "number"
+
+    # ------------------------------------------------------------------
+    # HTML rendering
+    # ------------------------------------------------------------------
+
+    def test_relationship_section_rendered(self):
+        html = self._render(RELATIONSHIP_SCHEMA)
+        assert "Relationships" in html
+
+    def test_relationship_name_rendered(self):
+        html = self._render(RELATIONSHIP_SCHEMA)
+        assert "Placed" in html
+
+    def test_relationship_endpoints_rendered(self):
+        html = self._render(RELATIONSHIP_SCHEMA)
+        assert "User" in html
+        assert "Order" in html
+
+    def test_relationship_strategy_rendered(self):
+        html = self._render(RELATIONSHIP_SCHEMA)
+        assert "one-to-one" in html
+
+    def test_relationship_generate_rendered(self):
+        html = self._render(RELATIONSHIP_SCHEMA)
+        assert "100" in html
+
+    def test_relationship_properties_rendered(self):
+        html = self._render(RELATIONSHIP_SCHEMA)
+        assert "createdAt" in html
+        assert "rating" in html
+        assert "datetime" in html
+        assert "number" in html
+
+    def test_relationship_property_count(self):
+        rel = self._coverage(RELATIONSHIP_SCHEMA)["relationships"][0]
+        assert len(rel["properties"]) == 2

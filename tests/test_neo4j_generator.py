@@ -196,6 +196,97 @@ schema Ecommerce {
 }
 """
 
+SCHEMA_WITH_RELATIONSHIPS_BLOCK = """
+schema ProjectManagement {
+    description: "Project management system with developer tasks and projects"
+    seed: 777
+    strategy: random
+
+    entity Developer {
+        fields {
+            id: uuid {
+                unique
+            }
+            email: email {
+                unique
+            }
+            username: username
+        }
+        config {
+            generate: 20
+        }
+    }
+
+    entity Project {
+        fields {
+            id: uuid {
+                unique
+            }
+            title: string
+            budget: number {
+                range 1000.0 .. 50000.0
+            }
+        }
+        config {
+            generate: 10
+        }
+    }
+
+    entity Task {
+        fields {
+            id: uuid {
+                unique
+            }
+            name: string
+            estimatedHours: number {
+                range 1..40
+            }
+        }
+        config {
+            generate: 50
+        }
+    }
+
+    relationship AssignedTo {
+        from Task
+        to Developer
+
+        properties {
+            role: string
+            active: boolean
+        }
+
+        config {
+            strategy: many-to-one
+            generate: 50
+            include: [
+                {
+                    role: "Lead",
+                    active: true
+                }
+            ]
+        }
+    }
+
+    relationship Contributes {
+        from Developer
+        to Project
+
+        properties {
+            hoursContributed: number
+            joinedDate: date
+        }
+
+        config {
+            strategy: many-to-many
+            generate: 35
+            minDegree: 1
+            maxDegree: 3
+        }
+    }
+}
+"""
+
 
 # ===========================================================================
 # 3. Valid Cypher output structure
@@ -342,16 +433,12 @@ class TestNullAndEdgeCases:
 
     def test_edge_case_empty_string(self):
         output = self._render(EDGE_CASE_SCHEMA)
-        assert "''" in output or "null" in output
+        assert "''" in output or "null" in output or '""' in output
 
     def test_no_ref_sentinels_in_output(self):
         output = self._render(FK_SCHEMA)
         assert "__ref__" not in output
 
-
-# ===========================================================================
-# 8. Foreign key & Relationship handling
-# ===========================================================================
 
 # ===========================================================================
 # 8. Foreign key & Relationship handling
@@ -369,10 +456,18 @@ class TestForeignKeysAndRelationships:
         assert "Author" in output
         assert "Article" in output
 
-    # def test_match_references_correct_node_id(self):
-    #     output = self._render(FK_SCHEMA)
-    #     assert "MATCH" in output
-    #     assert "id:" in output or "author" in output
+    def test_explicit_relationships_block_renders_match_and_create(self):
+        output = self._render(SCHEMA_WITH_RELATIONSHIPS_BLOCK)
+        assert "MATCH" in output
+        assert "Project" in output
+        assert "Developer" in output
+        assert "Task" in output
+        assert "-[:" in output
+
+    def test_relationship_properties_and_include_values(self):
+        output = self._render(SCHEMA_WITH_RELATIONSHIPS_BLOCK)
+        assert "Lead" in output
+        assert "active: true" in output or "active:true" in output
 
 
 # ===========================================================================
@@ -418,7 +513,6 @@ class TestNeo4jGeneratorIntegration:
     def test_output_is_valid_cypher_structure(self):
         output = self._render()
         assert "CREATE" in output
-        # assert "MATCH" in output
 
     def test_both_entities_present(self):
         output = self._render()

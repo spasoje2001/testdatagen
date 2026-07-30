@@ -8,29 +8,40 @@ FILES = [
         "file_name": "ecommerce", 
         "schema_name": "Ecommerce",
         "objects": [["User", 50], ["Product", 100], ["Order", 200]],
-        "seed": "123"
+        "seed": "123",
+        "relationships": []
     },
     {
         "file_name": "minimal", 
         "schema_name": "Blog",
         "objects": [["Post", 15], ["User", 10]],
-        "seed": "999"
+        "seed": "999",
+        "relationships": []
     },
     {
         "file_name": "edge_cases", 
         "schema_name": "BankingSystem",
         "objects": [["Customer", 50]],
-        "seed": "2026"
+        "seed": "2026",
+        "relationships": []
     },
     {
         "file_name": "complex_refs", 
         "schema_name": "UniversitySystem",
         "objects": [["Professor", 12], ["Course", 20], ["Student", 40], ["Exam", 120]],
-        "seed": "12345"
+        "seed": "12345",
+        "relationships": []
+    },
+    {
+        "file_name": "relationships",
+        "schema_name": "ProjectManagement",
+        "objects": [["Developer", 20], ["Project", 10], ["Task", 50]],
+        "seed": "777",
+        "relationships": [["ASSIGNEDTO", 50], ["CONTRIBUTES", 35]]
     }
 ]
 
-def _generate_neo4j_helper(runner, schema_dir, file_name, schema_name, objects):
+def _generate_neo4j_helper(runner, schema_dir, file_name, schema_name, objects, relationships):
     schema_path = os.path.join(os.path.dirname(__file__), 'fixtures', f'{file_name}.tdata')
     
     result = runner.invoke(main, [
@@ -53,6 +64,14 @@ def _generate_neo4j_helper(runner, schema_dir, file_name, schema_name, objects):
         actual_count = content.count(create_pattern)
         assert actual_count == expected_count, f"Expected {expected_count} nodes for {entity_name}, but found {actual_count} in Cypher script."
 
+    for rel_type, expected_rel_count in relationships:
+        rel_pattern = f":{rel_type}"
+        actual_rel_count = content.count(rel_pattern)
+        assert actual_rel_count >= expected_rel_count, f"Expected at least {expected_rel_count} relationships of type {rel_type}, but found {actual_rel_count}."
+        
+        if file_name == "university_network":
+            assert "Fall-2025" in content, "Include property value 'Fall-2025' missing from TEACHES relationship."
+
 def test_generate_neo4j_structure(runner, schema_dir):
     for example in FILES:
         _generate_neo4j_helper(
@@ -60,7 +79,8 @@ def test_generate_neo4j_structure(runner, schema_dir):
             schema_dir, 
             example["file_name"], 
             example["schema_name"], 
-            example["objects"]
+            example["objects"],
+            example["relationships"]
         )
 
 def _seed_reproducibility_neo4j(runner, schema_dir, file_name, seed, schema_name):

@@ -28,6 +28,12 @@ FILES = [
         "schema_name": "Ecommerce",
         "seed": "12345",
         "table_names": ["users", "products", "orders"]
+    },
+    {
+        "file_name": "relationships",
+        "schema_name": "ProjectManagement",
+        "seed": "777",
+        "table_names": ["developers", "projects", "tasks"]
     }
 ]
 

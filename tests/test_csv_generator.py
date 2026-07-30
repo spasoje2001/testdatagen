@@ -224,6 +224,97 @@ schema University {
 }
 """
 
+SCHEMA_WITH_RELATIONSHIPS_BLOCK = """
+schema ProjectManagement {
+    description: "Project management system with developer tasks and projects"
+    seed: 777
+    strategy: random
+
+    entity Developer {
+        fields {
+            id: uuid {
+                unique
+            }
+            email: email {
+                unique
+            }
+            username: username
+        }
+        config {
+            generate: 20
+        }
+    }
+
+    entity Project {
+        fields {
+            id: uuid {
+                unique
+            }
+            title: string
+            budget: number {
+                range 1000.0 .. 50000.0
+            }
+        }
+        config {
+            generate: 10
+        }
+    }
+
+    entity Task {
+        fields {
+            id: uuid {
+                unique
+            }
+            name: string
+            estimatedHours: number {
+                range 1..40
+            }
+        }
+        config {
+            generate: 50
+        }
+    }
+
+    relationship AssignedTo {
+        from Task
+        to Developer
+
+        properties {
+            role: string
+            active: boolean
+        }
+
+        config {
+            strategy: many-to-one
+            generate: 50
+            include: [
+                {
+                    role: "Lead",
+                    active: true
+                }
+            ]
+        }
+    }
+
+    relationship Contributes {
+        from Developer
+        to Project
+
+        properties {
+            hoursContributed: number
+            joinedDate: date
+        }
+
+        config {
+            strategy: many-to-many
+            generate: 35
+            minDegree: 1
+            maxDegree: 3
+        }
+    }
+}
+"""
+
 # ===========================================================================
 # 3. Build structure
 # ===========================================================================
@@ -415,7 +506,7 @@ class TestDataTypes:
         for student in data["entities"]["Student"]:
             assert not isinstance(student["courses"], list)
 
-## ===========================================================================
+# ===========================================================================
 # 7. Null and edge case handling
 # ===========================================================================
 
@@ -610,3 +701,13 @@ class TestCSVGeneratorIntegration:
             for record in records:
                 for value in record.values():
                     assert not isinstance(value, list)
+
+    def test_relationships_block_is_ignored(self):
+        """Ensures explicit relationship blocks are safely ignored in CSV build output."""
+        model = load_model_from_str(SCHEMA_WITH_RELATIONSHIPS_BLOCK)
+        data = CSVGenerator(model).build()
+        
+        assert "AssignedTo" not in data["entities"]
+        assert "Developer" in data["entities"]
+        assert "Project" in data["entities"]
+        assert len(data["entities"]) == 3

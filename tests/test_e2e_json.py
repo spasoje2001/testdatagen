@@ -28,6 +28,12 @@ FILES = [
         "schema_name": "UniversitySystem",
         "objects": [["Professor", 12], ["Course", 20], ["Student", 40], ["Exam", 120]],
         "seed": "12345"
+    },
+    {
+        "file_name": "relationships",
+        "schema_name": "ProjectManagement",
+        "objects": [["Developer", 20], ["Project", 10], ["Task", 50]],
+        "seed": "777"
     }
 ]
 

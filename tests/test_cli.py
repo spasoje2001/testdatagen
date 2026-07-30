@@ -682,3 +682,120 @@ def test_generate_from_stdin(runner, tmp_path):
 
     assert result.exit_code == 0
     assert (output_dir / "TestSchema").exists()
+
+
+# ==========================================
+# 6. Tests for New Relationship Feature (CLI)
+# ==========================================
+
+def test_validate_relationship_success(runner, tmp_path):
+    schema_file = tmp_path / "relationship_valid.tdg"
+    schema_file.write_text(
+        """
+        schema Ecommerce {
+            entity User {
+                fields {
+                    id: uuid
+                    name: string
+                }
+            }
+
+            entity Order {
+                fields {
+                    id: uuid
+                    total: number
+                }
+            }
+
+            relationship Placed {
+                from User
+                to Order
+                properties {
+                    createdAt: string
+                    rating: number
+                }
+                config {
+                    strategy: one-to-one
+                    generate: 10
+                }
+            }
+        }
+        """
+    )
+
+    result = runner.invoke(main, ["validate", str(schema_file)])
+
+    assert result.exit_code == 0
+    assert "valid" in result.output.lower()
+
+
+def test_validate_relationship_invalid_entity(runner, tmp_path):
+    schema_file = tmp_path / "relationship_invalid.tdg"
+    schema_file.write_text(
+        """
+        schema Ecommerce {
+            entity User {
+                fields {
+                    id: uuid
+                }
+            }
+
+            relationship Placed {
+                from User
+                to NonExistentEntity
+            }
+        }
+        """
+    )
+
+    result = runner.invoke(main, ["validate", str(schema_file)])
+
+    assert result.exit_code == 1
+    assert "error" in result.output.lower()
+
+
+def test_non_graph_generators_ignore_relationships(runner, tmp_path):
+    schema_file = tmp_path / "schema_with_rel.tdg"
+    schema_file.write_text(
+        """
+        schema Ecommerce {
+            entity User {
+                fields {
+                    id: uuid
+                    name: string
+                }
+            }
+
+            entity Order {
+                fields {
+                    id: uuid
+                }
+            }
+
+            relationship Placed {
+                from User
+                to Order
+            }
+        }
+        """
+    )
+
+    output_dir = tmp_path / "output"
+
+    result = runner.invoke(
+        main,
+        [
+            "generate",
+            str(schema_file),
+            "--output",
+            str(output_dir),
+            "-f",
+            "sql,json,yaml,csv",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert (output_dir / "Ecommerce.sql").exists()
+    assert (output_dir / "Ecommerce.json").exists()
+    assert (output_dir / "Ecommerce.yaml").exists()
+    assert (output_dir / "Ecommerce").exists()
