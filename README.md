@@ -196,13 +196,6 @@ The HTML coverage report shows which test cases were generated and calculates co
 
 **Note:** If `generate: N` is smaller than the number of required test cases, coverage will be less than 100% and the report will indicate how many additional records are needed for full coverage.
 
-Relationship properties are also included in the coverage report.
-
-| Relationship | Property | Strategy | Required Cases | Generated | Coverage |
-|--------------|----------|----------|----------------|-----------|----------|
-| Purchased | rating | BVA | 6 | 6 | 100% |
-| Purchased | createdAt | EP | 3 | 3 | 100% |
-
 ## Grammar
 
 The TestDataGen language consists of two main parts:
@@ -476,9 +469,9 @@ Each relationship may define an optional `config` block that controls how graph 
 | Option | Description | Default |
 |----------|-------------|---------|
 | `strategy` | Graph generation strategy (`one-to-one`, `one-to-many`, `many-to-one`, `many-to-many`) | `many-to-many` |
-| `generate` | Maximum number of relationships (edges) to generate | Unlimited |
+| `generate` | Maximum number of relationships (edges) to generate | `10` |
 | `minDegree` | Minimum number of outgoing relationships for each source node | `0` |
-| `maxDegree` | Maximum number of outgoing relationships for each source node | Unlimited |
+| `maxDegree` | Maximum number of outgoing relationships for each source node | Number of target nodes |
 | `include` | Explicit relationship property test cases | None |
 
 `generate` acts as an **upper bound** on the number of generated relationships. The actual number may be lower depending on the selected strategy, the available source/target nodes, and the configured degree constraints.
@@ -556,10 +549,6 @@ CREATE (u)-[:PURCHASED {
     rating:5
 }]->(p);
 ```
-
-### Relationship Properties
-
-Relationship properties behave the same way as entity fields. They support the same built-in data types, constraints, generation strategies, explicit include cases, and coverage calculation.
 
 ## VS Code Extension
 
