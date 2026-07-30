@@ -1,0 +1,30 @@
+# Git i interni fajlovi
+.git/
+.github/
+.vscode/
+
+# Python virtuelno okruženje i keš
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.coverage
+*.pyc
+*.pyo
+*.pyd
+
+# Testovi i primeri (nisu potrebni krajnjem korisniku)
+tests/
+examples/
+output/
+
+# Meta fajlovi projekta
+*.egg-info/
+pytest.ini
+pyproject.toml
+setup.py
+requirements.txt
+
+# Node moduli (ako ekstenzija nije bundlovana, zadržavamo samo produkcijske, 
+# ali je najbolje da isključimo ceo node_modules osim ako baš ne mora)
+node_modules/

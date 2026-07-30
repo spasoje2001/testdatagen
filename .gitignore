@@ -201,3 +201,6 @@ marimo/_lsp/
 __marimo__/
 
 node_modules
+output
+
+*.vsix

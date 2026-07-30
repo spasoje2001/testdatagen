@@ -304,6 +304,8 @@ def _find_best_row(field_names, field_values, uncovered, rng):
             row[field_names[k]] = other_vals[idx]
 
         score = _pairs_covered_by_row(row, field_names, uncovered)
+        if score == best_score:
+            break
         if score > best_score:
             best_score = score
             best_row = row

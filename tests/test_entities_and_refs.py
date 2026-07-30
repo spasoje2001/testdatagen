@@ -1,6 +1,7 @@
 import pytest
 from grammar_loader import load_model_from_str
 from validation import InvalidGenerateCountError, InvalidRangeError
+from testdatagen.generators.sql_generator import _schema_entities
 
 
 def test_entity_config_generate_and_combination_strategy():
@@ -21,7 +22,7 @@ def test_entity_config_generate_and_combination_strategy():
         """
     )
 
-    entity = model.entities[0]
+    entity = _schema_entities(model)[0]
     assert entity.config is not None
     assert len(entity.config.options) == 2
 
@@ -56,7 +57,7 @@ def test_simple_ref_type():
         """
     )
 
-    field = model.entities[1].fields[0]
+    field = _schema_entities(model)[1].fields[0]
     assert field.name == "owner"
     assert field.type.__class__.__name__ == "RefType"
     assert field.type.entity.name == "User"
@@ -81,7 +82,7 @@ def test_array_ref_with_count():
         """
     )
 
-    field = model.entities[1].fields[0]
+    field = _schema_entities(model)[1].fields[0]
     assert field.type.__class__.__name__ == "RefType"
     assert field.type.entity.name == "User"
     assert field.type.array is True

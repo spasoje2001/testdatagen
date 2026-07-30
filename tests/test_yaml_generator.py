@@ -1,84 +1,90 @@
 """
-Unit tests for testdatagen/generators/json_generator.py  (#16)
+Unit tests for testdatagen/generators/yaml_generator.py
 
 Run with:
-    pytest tests/test_json_generator.py -v
+    pytest tests/test_yaml_generator.py -v
 """
 
-import json
+from datetime import date, datetime
+import yaml
 import re
 
-import pytest
-
-from testdatagen.generators.json_generator import JSONGenerator, format_value_json
 from grammar_loader import load_model_from_str
+from testdatagen.generators.yaml_generator import (
+    YAMLGenerator,
+    format_value_yaml,
+)
 
 
 # ===========================================================================
-# 1. format_value_json — type conversion
+# 1. format_value_yaml — type conversion
 # ===========================================================================
 
-class TestFormatValueJson:
+class TestFormatValueYAML:
+
     def test_none_stays_none(self):
-        assert format_value_json(None) is None
+        assert format_value_yaml(None) is None
 
     def test_true_stays_bool(self):
-        assert format_value_json(True) is True
-        assert isinstance(format_value_json(True), bool)
+        value = format_value_yaml(True)
+        assert value is True
+        assert isinstance(value, bool)
 
     def test_false_stays_bool(self):
-        assert format_value_json(False) is False
+        value = format_value_yaml(False)
+        assert value is False
+        assert isinstance(value, bool)
 
     def test_bool_not_treated_as_int(self):
-        # bool is subclass of int — must stay as bool not become 1/0
-        assert format_value_json(True)  is True
-        assert format_value_json(False) is False
+        assert format_value_yaml(True) is True
+        assert format_value_yaml(False) is False
 
-    def test_integer_stays_int(self):
-        val = format_value_json(42)
-        assert val == 42
-        assert isinstance(val, int)
+    def test_integer_stays_integer(self):
+        value = format_value_yaml(42)
+        assert value == 42
+        assert isinstance(value, int)
 
     def test_float_stays_float(self):
-        val = format_value_json(3.14)
-        assert val == 3.14
-        assert isinstance(val, float)
+        value = format_value_yaml(3.14)
+        assert value == 3.14
+        assert isinstance(value, float)
 
-    def test_zero_stays_int(self):
-        assert format_value_json(0) == 0
+    def test_zero_stays_integer(self):
+        assert format_value_yaml(0) == 0
 
     def test_negative_number(self):
-        assert format_value_json(-7) == -7
+        assert format_value_yaml(-7) == -7
 
     def test_string_stays_string(self):
-        assert format_value_json("hello") == "hello"
+        assert format_value_yaml("hello") == "hello"
 
     def test_empty_string(self):
-        assert format_value_json("") == ""
+        assert format_value_yaml("") == ""
 
     def test_string_with_special_chars(self):
-        # No escaping needed — json.dumps handles that
-        val = format_value_json("it's a \"test\"")
-        assert val == "it's a \"test\""
+        value = format_value_yaml('it\'s a "test"')
+        assert value == 'it\'s a "test"'
 
     def test_date_becomes_iso_string(self):
-        from datetime import date
-        val = format_value_json(date(2024, 6, 15))
-        assert val == "2024-06-15"
+        value = format_value_yaml(date(2024, 6, 15))
+        assert value == "2024-06-15"
 
     def test_datetime_becomes_iso_string(self):
-        from datetime import datetime
-        val = format_value_json(datetime(2024, 6, 15, 10, 30, 0))
-        assert val == "2024-06-15T10:30:00"
+        value = format_value_yaml(datetime(2024, 6, 15, 10, 30, 0))
+        assert value == "2024-06-15T10:30:00"
 
     def test_list_is_recursively_formatted(self):
-        val = format_value_json([1, None, "x", True])
-        assert val == [1, None, "x", True]
+        value = format_value_yaml([1, None, True, "abc"])
+        assert value == [1, None, True, "abc"]
+
+    def test_empty_list_stays_empty(self):
+        assert format_value_yaml([]) == []
 
     def test_unknown_type_becomes_string(self):
         class Weird:
-            def __str__(self): return "weird"
-        assert format_value_json(Weird()) == "weird"
+            def __str__(self):
+                return "weird"
+        assert format_value_yaml(Weird()) == "weird"
 
 
 # ===========================================================================
@@ -138,59 +144,6 @@ schema App {
             headline: string
         }
         config { generate: 5 }
-    }
-}
-"""
-
-INCLUDE_SCHEMA = """
-schema Reg {
-    seed: 5
-    strategy: random
-
-    entity User {
-        fields {
-            id: uuid
-            email: email
-            age: number { range 18..99 }
-        }
-        config {
-            generate: 10
-            include: [
-                { email: "admin@example.com", age: 30 },
-                { email: null, age: 18 }
-            ]
-        }
-    }
-}
-"""
-
-EDGE_CASE_SCHEMA = """
-schema Edge {
-    seed: 42
-    strategy: random
-
-    entity Item {
-        fields {
-            id: uuid
-            label: string { include[null, empty] }
-            score: number { range 0..10 }
-        }
-        config { generate: 8 }
-    }
-}
-"""
-
-BOUNDARY_SCHEMA = """
-schema BVA {
-    seed: 3
-    strategy: boundary
-
-    entity Score {
-        fields {
-            id: uuid
-            points: number { range 0..100, boundary }
-        }
-        config { generate: 20 }
     }
 }
 """
@@ -286,39 +239,93 @@ schema ProjectManagement {
 }
 """
 
+INCLUDE_SCHEMA = """
+schema Reg {
+    seed: 5
+    strategy: random
+
+    entity User {
+        fields {
+            id: uuid
+            email: email
+            age: number { range 18..99 }
+        }
+        config {
+            generate: 10
+            include: [
+                { email: "admin@example.com", age: 30 },
+                { email: null, age: 18 }
+            ]
+        }
+    }
+}
+"""
+
+EDGE_CASE_SCHEMA = """
+schema Edge {
+    seed: 42
+    strategy: random
+
+    entity Item {
+        fields {
+            id: uuid
+            label: string { include[null, empty] }
+            score: number { range 0..10 }
+        }
+        config { generate: 8 }
+    }
+}
+"""
+
+BOUNDARY_SCHEMA = """
+schema BVA {
+    seed: 3
+    strategy: boundary
+
+    entity Score {
+        fields {
+            id: uuid
+            points: number { range 0..100, boundary }
+        }
+        config { generate: 20 }
+    }
+}
+"""
+
 
 # ===========================================================================
-# 3. Valid JSON output
+# 3. Valid YAML output
 # ===========================================================================
 
-class TestValidJson:
+class TestValidYAML:
+
     def _render(self, schema_str, **kwargs):
         model = load_model_from_str(schema_str)
-        return JSONGenerator(model, **kwargs).render()
+        return YAMLGenerator(model, **kwargs).render()
 
-    def test_output_is_valid_json(self):
+    def test_output_is_valid_yaml(self):
         output = self._render(SIMPLE_SCHEMA)
-        parsed = json.loads(output)   # must not raise
+        parsed = yaml.safe_load(output)
         assert parsed is not None
 
-    def test_compact_output_is_valid_json(self):
-        output = self._render(SIMPLE_SCHEMA, pretty=False)
-        parsed = json.loads(output)
-        assert parsed is not None
+    def test_pretty_output_is_valid_yaml(self):
+        output = self._render(SIMPLE_SCHEMA)
+        parsed = yaml.safe_load(output)
+        assert isinstance(parsed, dict)
 
-    def test_pretty_output_has_indentation(self):
-        output = self._render(SIMPLE_SCHEMA, pretty=True, indent=2)
-        assert "\n" in output
-        assert "  " in output
+    def test_metadata_present(self):
+        output = self._render(SIMPLE_SCHEMA)
+        parsed = yaml.safe_load(output)
+        assert "metadata" in parsed
 
-    def test_compact_output_has_no_newlines(self):
-        output = self._render(SIMPLE_SCHEMA, pretty=False)
-        assert "\n" not in output
+    def test_entities_present(self):
+        output = self._render(SIMPLE_SCHEMA)
+        parsed = yaml.safe_load(output)
+        assert "entities" in parsed
 
-    def test_custom_indent(self):
-        output = self._render(SIMPLE_SCHEMA, pretty=True, indent=4)
-        assert "    " in output   # 4-space indent
-
+    def test_render_returns_string(self):
+        output = self._render(SIMPLE_SCHEMA)
+        assert isinstance(output, str)
 
 # ===========================================================================
 # 4. Metadata structure
@@ -327,7 +334,7 @@ class TestValidJson:
 class TestMetadata:
     def _build(self, schema_str, **kwargs):
         model = load_model_from_str(schema_str)
-        return JSONGenerator(model, **kwargs).build()
+        return YAMLGenerator(model, **kwargs).build()
 
     def test_metadata_key_present(self):
         data = self._build(SIMPLE_SCHEMA)
@@ -346,7 +353,10 @@ class TestMetadata:
         assert data["metadata"]["seed"] == 1234
 
     def test_metadata_generated_at(self):
-        data = self._build(SIMPLE_SCHEMA, timestamp="2024-01-15T10:30:00")
+        data = self._build(
+            SIMPLE_SCHEMA,
+            timestamp="2024-01-15T10:30:00",
+        )
         assert data["metadata"]["generated_at"] == "2024-01-15T10:30:00"
 
     def test_metadata_generated_at_empty_default(self):
@@ -365,7 +375,7 @@ class TestMetadata:
 class TestEntityStructure:
     def _build(self, schema_str, **kwargs):
         model = load_model_from_str(schema_str)
-        return JSONGenerator(model, **kwargs).build()
+        return YAMLGenerator(model, **kwargs).build()
 
     def test_entity_name_is_key(self):
         data = self._build(SIMPLE_SCHEMA)
@@ -399,13 +409,13 @@ class TestEntityStructure:
 
 
 # ===========================================================================
-# 6. Data types in JSON records
+# 6. Data types in YAML records
 # ===========================================================================
 
 class TestDataTypes:
     def _build(self, schema_str, **kwargs):
         model = load_model_from_str(schema_str)
-        return JSONGenerator(model, **kwargs).build()
+        return YAMLGenerator(model, **kwargs).build()
 
     def test_uuid_is_string(self):
         data = self._build(SIMPLE_SCHEMA)
@@ -418,7 +428,9 @@ class TestDataTypes:
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         )
         for record in data["entities"]["Post"]:
-            assert uuid_re.match(record["id"]), f"Bad UUID: {record['id']!r}"
+            assert uuid_re.match(record["id"]), (
+                f"Bad UUID: {record['id']!r}"
+            )
 
     def test_boolean_is_python_bool(self):
         data = self._build(SIMPLE_SCHEMA)
@@ -428,7 +440,6 @@ class TestDataTypes:
     def test_boolean_not_int(self):
         data = self._build(SIMPLE_SCHEMA)
         for record in data["entities"]["Post"]:
-            # bool is subclass of int, but type() must be exactly bool
             assert type(record["published"]) is bool
 
     def test_number_is_numeric(self):
@@ -450,14 +461,21 @@ class TestDataTypes:
     def test_null_is_python_none(self):
         data = self._build(INCLUDE_SCHEMA)
         records = data["entities"]["User"]
-        null_records = [r for r in records if r.get("email") is None]
-        assert null_records, "Expected at least one null email from include"
+        null_records = [
+            r for r in records
+            if r.get("email") is None
+        ]
+        assert null_records
 
-    def test_null_serialises_to_json_null(self):
+    def test_null_roundtrip_through_yaml(self):
         model = load_model_from_str(INCLUDE_SCHEMA)
-        output = JSONGenerator(model).render()
-        assert '"email": null' in output or '"email":null' in output
-
+        output = YAMLGenerator(model).render()
+        parsed = yaml.safe_load(output)
+        emails = [
+            r["email"]
+            for r in parsed["entities"]["User"]
+        ]
+        assert None in emails
 
 # ===========================================================================
 # 7. Null and edge case handling
@@ -466,7 +484,7 @@ class TestDataTypes:
 class TestNullAndEdgeCases:
     def _build(self, schema_str, **kwargs):
         model = load_model_from_str(schema_str)
-        return JSONGenerator(model, **kwargs).build()
+        return YAMLGenerator(model, **kwargs).build()
 
     def test_include_null_value_is_none(self):
         data = self._build(INCLUDE_SCHEMA)
@@ -476,20 +494,26 @@ class TestNullAndEdgeCases:
 
     def test_include_explicit_value_present(self):
         data = self._build(INCLUDE_SCHEMA)
-        emails = [r["email"] for r in data["entities"]["User"]]
+        emails = [
+            r["email"]
+            for r in data["entities"]["User"]
+        ]
         assert "admin@example.com" in emails
 
     def test_edge_case_empty_string(self):
         data = self._build(EDGE_CASE_SCHEMA)
-        labels = [r["label"] for r in data["entities"]["Item"]]
-        assert "" in labels or None in labels   # empty or null from include
+        labels = [
+            r["label"]
+            for r in data["entities"]["Item"]
+        ]
+        assert "" in labels or None in labels
 
     def test_no_ref_sentinels_in_output(self):
         data = self._build(FK_SCHEMA)
         for entity_records in data["entities"].values():
             for record in entity_records:
-                for val in record.values():
-                    assert val != "__ref__", f"Found __ref__ sentinel in output: {record}"
+                for value in record.values():
+                    assert value != "__ref__"
 
 
 # ===========================================================================
@@ -499,7 +523,7 @@ class TestNullAndEdgeCases:
 class TestForeignKeys:
     def _build(self, schema_str, **kwargs):
         model = load_model_from_str(schema_str)
-        return JSONGenerator(model, **kwargs).build()
+        return YAMLGenerator(model, **kwargs).build()
 
     def test_author_before_article_in_entities(self):
         data = self._build(FK_SCHEMA)
@@ -512,20 +536,20 @@ class TestForeignKeys:
             r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
         )
         for record in data["entities"]["Article"]:
-            author_val = record["author"]
-            if author_val is not None:
-                assert uuid_re.match(str(author_val)), (
-                    f"author FK is not a UUID: {author_val!r}"
-                )
+            author = record["author"]
+            if author is not None:
+                assert uuid_re.match(str(author))
 
     def test_article_author_exists_in_authors(self):
         data = self._build(FK_SCHEMA)
-        author_ids = {r["id"] for r in data["entities"]["Author"]}
+        author_ids = {
+            r["id"]
+            for r in data["entities"]["Author"]
+        }
         for record in data["entities"]["Article"]:
-            if record["author"] is not None:
-                assert record["author"] in author_ids, (
-                    f"Article references unknown author: {record['author']!r}"
-                )
+            author = record["author"]
+            if author is not None:
+                assert author in author_ids
 
 
 # ===========================================================================
@@ -535,7 +559,7 @@ class TestForeignKeys:
 class TestSeedReproducibility:
     def _build(self, schema_str, seed):
         model = load_model_from_str(schema_str)
-        return JSONGenerator(model, seed=seed).build()
+        return YAMLGenerator(model, seed=seed).build()
 
     def test_same_seed_same_output(self):
         d1 = self._build(SIMPLE_SCHEMA, seed=42)
@@ -549,8 +573,8 @@ class TestSeedReproducibility:
 
     def test_seed_from_schema_used_when_not_overridden(self):
         model = load_model_from_str(SIMPLE_SCHEMA)
-        gen1 = JSONGenerator(model)
-        gen2 = JSONGenerator(model)
+        gen1 = YAMLGenerator(model)
+        gen2 = YAMLGenerator(model)
         assert gen1.build() == gen2.build()
 
 
@@ -587,19 +611,20 @@ schema Ecommerce {
 """
 
 
-class TestJSONGeneratorIntegration:
+class TestYAMLGeneratorIntegration:
     def _build(self):
         model = load_model_from_str(FULL_SCHEMA)
-        return JSONGenerator(model, timestamp="TEST").build()
+        return YAMLGenerator(model, timestamp="TEST").build()
 
     def test_renders_without_error(self):
         data = self._build()
         assert isinstance(data, dict)
 
-    def test_output_is_valid_json(self):
+    def test_output_is_valid_yaml(self):
         model = load_model_from_str(FULL_SCHEMA)
-        output = JSONGenerator(model).render()
-        json.loads(output)   # must not raise
+        output = YAMLGenerator(model).render()
+        parsed = yaml.safe_load(output)
+        assert isinstance(parsed, dict)
 
     def test_both_entities_present(self):
         data = self._build()
@@ -623,33 +648,41 @@ class TestJSONGeneratorIntegration:
         data = self._build()
         for records in data["entities"].values():
             for record in records:
-                for val in record.values():
-                    assert val != "__ref__"
+                for value in record.values():
+                    assert value != "__ref__"
 
     def test_null_present_from_email_include(self):
         data = self._build()
-        emails = [r["email"] for r in data["entities"]["Customer"]]
+        emails = [
+            r["email"]
+            for r in data["entities"]["Customer"]
+        ]
         assert None in emails
 
     def test_order_customer_fk_valid(self):
         data = self._build()
-        customer_ids = {r["id"] for r in data["entities"]["Customer"]}
+        customer_ids = {
+            r["id"]
+            for r in data["entities"]["Customer"]
+        }
         for record in data["entities"]["Order"]:
-            if record["customer"] is not None:
-                assert record["customer"] in customer_ids
+            customer = record["customer"]
+            if customer is not None:
+                assert customer in customer_ids
 
     def test_metadata_correct(self):
         data = self._build()
         assert data["metadata"]["schema"] == "Ecommerce"
         assert data["metadata"]["seed"] == 12345
         assert data["metadata"]["generated_at"] == "TEST"
-
+    
     def test_relationships_block_is_ignored(self):
-        """Ensures explicit relationship blocks are safely ignored in JSON build output."""
+        """Ensures explicit relationship blocks are safely ignored in YAML build output."""
         model = load_model_from_str(SCHEMA_WITH_RELATIONSHIPS_BLOCK)
-        data = JSONGenerator(model).build()
+        data = YAMLGenerator(model).build()
         
         assert "AssignedTo" not in data["entities"]
+        
         assert "Developer" in data["entities"]
         assert "Project" in data["entities"]
         assert len(data["entities"]) == 3

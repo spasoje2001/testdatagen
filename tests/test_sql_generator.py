@@ -200,6 +200,97 @@ schema App {
 }
 """
 
+SCHEMA_WITH_RELATIONSHIPS_BLOCK = """
+schema ProjectManagement {
+    description: "Project management system with developer tasks and projects"
+    seed: 777
+    strategy: random
+
+    entity Developer {
+        fields {
+            id: uuid {
+                unique
+            }
+            email: email {
+                unique
+            }
+            username: username
+        }
+        config {
+            generate: 20
+        }
+    }
+
+    entity Project {
+        fields {
+            id: uuid {
+                unique
+            }
+            title: string
+            budget: number {
+                range 1000.0 .. 50000.0
+            }
+        }
+        config {
+            generate: 10
+        }
+    }
+
+    entity Task {
+        fields {
+            id: uuid {
+                unique
+            }
+            name: string
+            estimatedHours: number {
+                range 1..40
+            }
+        }
+        config {
+            generate: 50
+        }
+    }
+
+    relationship AssignedTo {
+        from Task
+        to Developer
+
+        properties {
+            role: string
+            active: boolean
+        }
+
+        config {
+            strategy: many-to-one
+            generate: 50
+            include: [
+                {
+                    role: "Lead",
+                    active: true
+                }
+            ]
+        }
+    }
+
+    relationship Contributes {
+        from Developer
+        to Project
+
+        properties {
+            hoursContributed: number
+            joinedDate: date
+        }
+
+        config {
+            strategy: many-to-many
+            generate: 35
+            minDegree: 1
+            maxDegree: 3
+        }
+    }
+}
+"""
+
 INCLUDE_SCHEMA = """
 schema Reg {
     seed: 5
@@ -288,7 +379,7 @@ class TestSQLGeneratorRender:
         sql = self._render(INCLUDE_SCHEMA)
         assert "NULL" in sql
 
-    def test_string_values_have_single_quotes(self):
+    def Test_string_values_have_single_quotes(self):
         sql = self._render(SIMPLE_SCHEMA)
         assert re.search(r"'[0-9a-f-]{36}'", sql)
 
@@ -354,6 +445,17 @@ class TestSQLGeneratorRender:
             assert len(matches) >= 2, (
                 f"Expected at least 2 UUIDs per article row, got {len(matches)} in: {line!r}"
             )
+
+    # --- relationships block ignoring ---
+
+    def test_relationships_block_is_ignored(self):
+        """Ensures explicit relationship blocks are safely ignored and do not generate invalid SQL or tables."""
+        sql = self._render(SCHEMA_WITH_RELATIONSHIPS_BLOCK)
+        assert "INSERT INTO assignedto" not in sql.lower()
+        assert "assignedto" not in sql.lower()
+        # Verify that only developers and projects tables are generated
+        assert "INSERT INTO developers" in sql
+        assert "INSERT INTO projects" in sql
 
     # --- boundary strategy ---
 

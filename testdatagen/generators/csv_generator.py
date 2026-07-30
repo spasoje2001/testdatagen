@@ -1,36 +1,42 @@
 """
-JSON Generator for TestDataGen (#16)
+CSV Generator for TestDataGen (#XX)
 
-Produces structured JSON output from a parsed TestDataGen schema.
+Produces CSV output from a parsed TestDataGen schema.
 Reuses the value-collection, combination, and FK-resolution pipeline
 from sql_generator.py — only the output serialisation differs.
 
 Output structure
 ----------------
-{
-  "metadata": {
-    "schema": "Ecommerce",
-    "seed": 12345,
-    "generated_at": "2024-01-15T10:30:00"
-  },
-  "entities": {
-    "User": [
-      {"id": "uuid-1", "email": "john@example.com", "age": 18, ...},
-      ...
-    ],
-    "Order": [...]
-  }
-}
+A directory named after the schema is created, containing one CSV file
+per entity and a generation metadata file.
 
-Array-ref fields (ref Entity[]) are stored as a list of IDs on each row
-rather than full nested objects, keeping the output flat and easy to mock.
+Example:
+
+Ecommerce/
+├── User.csv
+├── Product.csv
+├── Order.csv
+└── generated_details.txt
+
+Each CSV file contains a header row followed by generated records:
+
+id,email,age
+uuid-1,john@example.com,18
+uuid-2,jane@example.com,20
+
+Array-ref fields (ref Entity[]) are stored as semicolon-separated
+ID lists within a single CSV cell.
+
+The generated_details.txt file contains generation metadata such as the
+schema name, seed, generation timestamp, output format, and the number
+of generated records per entity.
 """
-
 from __future__ import annotations
 
-import json
+import csv
 import os
 import random as _random_module
+import shutil
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
@@ -42,43 +48,40 @@ from testdatagen.generators.sql_generator import (
     _collect_strategy_values,
     _combine_and_pad,
     _include_to_row,
-    _get_option,
     _generate_count,
     _combination_strategy,
     _include_cases,
     _field_type_name,
     _is_array_ref,
     _is_simple_ref,
-    _is_unique,
     _requires_unique_generation,
-    _deduplicate,
     _schema_entities
 )
 
 
 # ---------------------------------------------------------------------------
-# JSON value formatting
+# CSV value formatting
 # ---------------------------------------------------------------------------
 
-def format_value_json(value: Any) -> Any:
+def format_value_csv(value: Any) -> Any:
     """
-    Convert a Python value to a JSON-serialisable type.
+    Convert a Python value to a CSV-compatible string.
 
     Rules
     -----
-    None            → None        (serialises as JSON null)
-    bool            → bool        (True/False — must come before int check)
+    None            → ""
+    bool            → "true" / "false"
     int / float     → number      (as-is)
     date            → "YYYY-MM-DD"
     datetime        → "YYYY-MM-DDTHH:MM:SS"
     str             → str         (as-is)
-    list            → list        (array-ref ID lists)
+    list            → semicolon-separated values
     anything else   → str(value)
     """
     if value is None:
-        return None
+        return ""
     if isinstance(value, bool):
-        return value
+        return "true" if value else "false"
     if isinstance(value, (int, float)):
         return value
     if isinstance(value, datetime):
@@ -86,7 +89,7 @@ def format_value_json(value: Any) -> Any:
     if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, list):
-        return [format_value_json(v) for v in value]
+        return ";".join("" if v is None else str(format_value_csv(v)) for v in value)
     if isinstance(value, str):
         return value
     return str(value)
@@ -96,17 +99,18 @@ def format_value_json(value: Any) -> Any:
 # Main generator class
 # ---------------------------------------------------------------------------
 
-class JSONGenerator:
+class CSVGenerator:
     """
-    Generates structured JSON from a TestDataGen schema model.
+    Generates CSV files from a TestDataGen schema model.
+
+    One CSV file is created for each entity together with a
+    generation_details.txt metadata file.
 
     Parameters
     ----------
     model       : parsed textX model (from grammar_loader.load_model)
     seed        : override seed (None → use schema seed or random)
     timestamp   : ISO string to embed in metadata (defaults to empty string)
-    pretty      : if True, output is indented (default True)
-    indent      : indentation spaces when pretty=True (default 2)
     """
 
     def __init__(
@@ -114,14 +118,10 @@ class JSONGenerator:
         model,
         seed: Optional[int] = None,
         timestamp: str = "",
-        pretty: bool = True,
-        indent: int = 2,
     ):
         self.model     = model
         self.seed      = seed if seed is not None else getattr(model, "seed", None)
         self.timestamp = timestamp
-        self.pretty    = pretty
-        self.indent    = indent
         self._mapper   = FakerTypeMapper(seed=self.seed)
         self._generated_ids: Dict[str, List[Any]] = {}
 
@@ -129,15 +129,10 @@ class JSONGenerator:
     # Public
     # ------------------------------------------------------------------
 
-    def render(self) -> str:
-        """Return the complete JSON document as a string."""
-        data = self.build()
-        return json.dumps(data, indent=self.indent if self.pretty else None, ensure_ascii=False)
-
     def build(self) -> dict:
         """
         Build and return the output as a plain Python dict.
-        Useful for programmatic access without parsing JSON.
+        Useful for programmatic access before writing CSV files.
         """
         schema          = self.model
         entities        = _topological_sort(list(_schema_entities(schema)))
@@ -177,7 +172,7 @@ class JSONGenerator:
                     if row.get(f.name) is None:
                         row[f.name] = self._mapper.generate_for_type_name(_field_type_name(f.type), f.constraints)
 
-             # 5. Resolve FK refs
+            # 5. Resolve FK refs
             rows = self._resolve_refs(rows, normal_fields)
 
             # 6. Track IDs for downstream FK resolution
@@ -187,13 +182,13 @@ class JSONGenerator:
             if array_fields:
                 rows = self._attach_array_refs(entity, array_fields, rows)
 
-            # 8. Convert all values to JSON-safe types
-            json_rows = [
-                {col: format_value_json(row.get(col)) for col in row}
+            # 8. Convert values to CSV-compatible representation
+            csv_rows = [
+                {col: format_value_csv(row.get(col)) for col in row}
                 for row in rows
             ]
 
-            entities_out[entity.name] = json_rows
+            entities_out[entity.name] = csv_rows
 
         return {
             "metadata": {
@@ -277,24 +272,104 @@ class JSONGenerator:
 
         return rows
 
+    def generate(self, output_dir: str) -> None:
+        """
+        Generate one CSV file per entity together with
+        a generation_details.txt metadata file.
+        """
+        data = self.build()
 
-def generate_json(model, output_dir, overwrite):
+        # Write metadata file
+        self._write_generation_details(
+            output_dir,
+            data["metadata"],
+            data["entities"],
+        )
+
+        # Write one CSV per entity
+        for entity_name, rows in data["entities"].items():
+            self._write_entity_csv(
+                output_dir,
+                entity_name,
+                rows,
+            )
+
+    def _write_entity_csv(
+        self,
+        output_dir: str,
+        entity_name: str,
+        rows: List[Dict[str, Any]],
+    ) -> None:
+        path = os.path.join(output_dir, f"{entity_name}.csv")
+
+        with open(path, "w", newline="", encoding="utf-8") as f:
+            if not rows:
+                return
+
+            writer = csv.DictWriter(
+                f,
+                fieldnames=list(rows[0].keys()),
+            )
+
+            writer.writeheader()
+
+            for row in rows:
+                writer.writerow(row)
+    
+    def _write_generation_details(
+        self,
+        output_dir: str,
+        metadata: Dict[str, Any],
+        entities: Dict[str, List[Dict[str, Any]]],
+    ) -> None:
+        path = os.path.join(output_dir, "generation_details.txt")
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("TestDataGen CSV Generation\n")
+            f.write("==========================\n\n")
+
+            f.write(f"Schema: {metadata['schema']}\n")
+            f.write(f"Seed: {metadata['seed']}\n")
+            f.write(f"Generated at: {metadata['generated_at']}\n\n")
+
+            total = sum(len(rows) for rows in entities.values())
+
+            f.write(f"Format: CSV\n")
+            f.write(f"Output directory: {metadata['schema']}\n")
+            f.write(f"Entities: {len(entities)}\n")
+            f.write(f"Total records: {total}\n\n")
+
+            f.write("Entities\n")
+            f.write("-----------------\n")
+            for entity_name, rows in entities.items():
+                f.write(f"{entity_name}: {len(rows)} records\n")
+
+
+def generate_csv(model, output_dir, overwrite):
     """
-    CLI interface for the JSONGenerator class.
-    Handles file I/O and orchestration.
+    Generate CSV files for the given schema.
+
+    Returns
+    -------
+    str
+        Path to the generated directory.
     """
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    generator = JSONGenerator(model, timestamp=timestamp)
-    
-    json_content = generator.render()
-    
+
+    generator = CSVGenerator(model, timestamp=timestamp)
+
     schema_name = getattr(model, "name", "generated_data")
-    file_path = os.path.join(output_dir, f"{schema_name}.json")
-    
-    if os.path.exists(file_path) and not overwrite:
-        raise FileExistsError(f"File {file_path} already exists. Use --overwrite to replace it.")
-    
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write(json_content)
-    
-    return file_path
+    csv_dir = os.path.join(output_dir, schema_name)
+
+    if os.path.exists(csv_dir):
+        if not overwrite:
+            raise FileExistsError(
+                f"Directory {csv_dir} already exists. Use --overwrite to replace it."
+            )
+        shutil.rmtree(csv_dir)
+
+    os.makedirs(csv_dir, exist_ok=True)
+
+    generator.generate(csv_dir)
+
+    return csv_dir

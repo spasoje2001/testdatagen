@@ -4,13 +4,26 @@ Schema:
         ('seed:' seed=INT)?
         ('strategy:' strategy=Strategy)?
         ('combination_strategy:' combination_strategy=CombinationStrategy)?
-        entities+=Entity
+        elements+=SchemaElement
     '}';
+
+SchemaElement:
+    Entity | Relationship
+;
 
 Entity:
     'entity' name=ID '{'
         'fields' '{' fields+=Field '}'
         ('config' '{' config=EntityConfig '}')?
+    '}'
+;
+
+Relationship:
+    'relationship' name=ID '{'
+        'from' from=[Entity]
+        'to' to=[Entity]
+        ('properties' '{' properties+=Field '}')?
+        ('config' '{' config=RelationshipConfig '}')?
     '}'
 ;
 
@@ -38,7 +51,7 @@ SimpleTypeName:
     'uuid' | 'email' | 'fullName' | 'firstName' | 'lastName' |
     'number' | 'boolean' | 'datetime' | 'date' | 'string' |
     'productName' | 'companyName' | 'address' | 'city' |
-    'country' | 'phone' | 'url'
+    'country' | 'phone' | 'url' | 'username'
 ;
 
 EnumType:
@@ -133,12 +146,43 @@ EntityConfigOption:
     IncludeOption
 ;
 
+RelationshipConfig:
+    options*=RelationshipConfigOption
+;
+
+RelationshipConfigOption:
+    GenerateOption |
+    RelationshipStrategyOption |
+    MinDegreeOption |
+    MaxDegreeOption |
+    IncludeOption
+;
+
 GenerateOption:
     'generate:' generate=INT
 ;
 
 EntityCombinationStrategyOption:
     'combination_strategy:' combination_strategy=CombinationStrategy
+;
+
+RelationshipStrategyOption:
+    'strategy:' strategy=RelationshipStrategy
+;
+
+RelationshipStrategy:
+    'one-to-one'
+    | 'one-to-many'
+    | 'many-to-one'
+    | 'many-to-many'
+;
+
+MinDegreeOption:
+    'minDegree:' value=INT
+;
+
+MaxDegreeOption:
+    'maxDegree:' value=INT
 ;
 
 IncludeOption:

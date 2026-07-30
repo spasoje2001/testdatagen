@@ -28,10 +28,16 @@ FILES = [
         "schema_name": "UniversitySystem",
         "objects": [["Professor", 12], ["Course", 20], ["Student", 40], ["Exam", 120]],
         "seed": "12345"
+    },
+    {
+        "file_name": "relationships",
+        "schema_name": "ProjectManagement",
+        "objects": [["Developer", 20], ["Project", 10], ["Task", 50]],
+        "seed": "777"
     }
 ]
 
-def _generate_halper(runner, schema_dir, file_name, schema_name, objects):
+def _generate_helper(runner, schema_dir, file_name, schema_name, objects):
     schema_path = os.path.join(os.path.dirname(__file__), 'fixtures', f'{file_name}.tdata')
     
     result = runner.invoke(main, [
@@ -55,7 +61,7 @@ def _generate_halper(runner, schema_dir, file_name, schema_name, objects):
 
 def test_generate_json_structure(runner, schema_dir):
     for example in FILES:
-        _generate_halper(
+        _generate_helper(
             runner, 
             schema_dir, 
             example["file_name"], 
